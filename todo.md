@@ -6,3 +6,7 @@
 
 - [ ] API to GO
 - [ ] TUI with Tea
+
+
+## Docker 
+- [ ] Fix docker compose up
