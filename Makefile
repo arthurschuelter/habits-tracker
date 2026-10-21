@@ -1,9 +1,9 @@
-.PHONY: run build run-api run-tui test up down
+.PHONY: run build api run-tui test up down
 run:
 	go run ./cmd/api
 	go run ./cmd/tui
 
-run-api:
+api:
 	go run ./cmd/api
 
 run-tui:
