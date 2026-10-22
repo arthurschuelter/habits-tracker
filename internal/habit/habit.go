@@ -9,7 +9,6 @@ var ErrNotFound = errors.New("habit not found")
 
 type Habit struct {
 	ID          string
-	UserID      string
 	Name        string
 	Description string
 }

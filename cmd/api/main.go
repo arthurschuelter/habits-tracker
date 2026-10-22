@@ -15,16 +15,9 @@ import (
 	"github.com/labstack/echo/v5/middleware"
 )
 
-// type Habit struct {
-// 	ID          int    `json:id`
-// 	UserID      int    `json:user_id`
-// 	Name        string `json:name`
-// 	Description string `json:description`
-// }
-
 const PostgresDriver = "postgres"
-const Host = "admin"
-const Port = "3306"
+const Host = "localhost"
+const Port = "5432"
 const User = "admin"
 const Password = "adminpassword"
 const DbName = "habitsdb"

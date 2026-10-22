@@ -1,0 +1,17 @@
+package habit_entry
+
+import (
+	"context"
+	"errors"
+)
+
+var ErrNotFound = errors.New("habit entry not found")
+
+type HabitEntry struct {
+	ID   string
+	Date string
+}
+
+type Repository interface {
+	ListByHabitID(ctx context.Context, habitID string) ([]HabitEntry, error)
+}

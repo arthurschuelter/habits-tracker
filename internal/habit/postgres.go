@@ -26,7 +26,7 @@ func (r *PostgresRepo) GetByID(ctx context.Context, habitID string) (*Habit, err
 	var h Habit
 	err := r.db.
 		QueryRowContext(ctx, q, habitID).
-		Scan(&h.ID, &h.UserID, &h.Name, &h.Description)
+		Scan(&h.ID, &h.Name, &h.Description)
 
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
@@ -41,7 +41,7 @@ func (r *PostgresRepo) GetByID(ctx context.Context, habitID string) (*Habit, err
 
 func (r *PostgresRepo) ListByUserID(ctx context.Context, userID string) ([]Habit, error) {
 	const q = `
-		SELECT id, user_id, name, description, 
+		SELECT id, name, description 
 		FROM habits 
 		WHERE user_id = $1`
 
@@ -49,12 +49,13 @@ func (r *PostgresRepo) ListByUserID(ctx context.Context, userID string) ([]Habit
 	if err != nil {
 		return nil, fmt.Errorf("list habits for user %s: %w", userID, err)
 	}
+
 	defer rows.Close()
 
 	habits := []Habit{}
 	for rows.Next() {
 		var h Habit
-		if err := rows.Scan(&h.ID, &h.UserID, &h.Name, &h.Description); err != nil {
+		if err := rows.Scan(&h.ID, &h.Name, &h.Description); err != nil {
 			return nil, fmt.Errorf("scan habit: %w", err)
 		}
 		habits = append(habits, h)

@@ -6,7 +6,7 @@ run:
 api:
 	go run ./cmd/api
 
-run-tui:
+tui:
 	go run ./cmd/tui
 
 build:

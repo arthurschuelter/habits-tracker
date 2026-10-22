@@ -20,6 +20,12 @@ type Habit struct {
 	Streak      int          `json:"streak"`
 }
 
+type HabitTwo struct {
+	Id          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
 type HabitStreak struct {
 	HabitEntryDate string
 	IsActive       bool
@@ -60,6 +66,11 @@ func main() {
 			HabitEntryOptionsMenu(habits)
 		}
 
+		if command == 3 {
+			habits := ListHabits()
+			printFetchHabitsTwo(habits)
+		}
+
 		if command >= 4 {
 			fmt.Println("Bye bye")
 			return
@@ -71,9 +82,37 @@ func PrintMenu() {
 	fmt.Println("=======================")
 	fmt.Println("(1) Fetch habits")
 	fmt.Println("(2) Add habit entry")
+	fmt.Println("(3) List Habits")
 	fmt.Println("(4) Exit")
 	fmt.Print("Enter command: ")
 }
+
+func ListHabits() []HabitTwo {
+	base_url := "http://localhost:1323/habits"
+	response, err := http.Get(base_url)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	var habits []HabitTwo
+	err = json.Unmarshal(body, &habits)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	return habits
+}
+
+//
 
 func GetHabits() []Habit {
 	base_url := "http://localhost:8000/api/habits"
@@ -180,6 +219,17 @@ func printFetchHabits(habits []Habit) {
 		fmt.Println("Entries (last 30 days):")
 		PrintStreak(habit)
 		PrintTotalDuration(habit)
+		fmt.Println("")
+	}
+}
+
+func printFetchHabitsTwo(habits []HabitTwo) {
+	clear()
+	clear()
+	for _, habit := range habits {
+		fmt.Printf("%s (%s)\n", habit.Name, habit.Id)
+		fmt.Printf("Description: %s\n", habit.Description)
+		// PrintTotalDuration(habit)
 		fmt.Println("")
 	}
 }
