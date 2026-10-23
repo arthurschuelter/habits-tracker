@@ -3,6 +3,8 @@ package habit
 import (
 	"context"
 	"errors"
+
+	"github.com/arthurschuelter/habits-tracker/internal/habit_entry"
 )
 
 var ErrNotFound = errors.New("habit not found")
@@ -11,6 +13,7 @@ type Habit struct {
 	ID          string
 	Name        string
 	Description string
+	Entries     []habit_entry.HabitEntry
 }
 
 type Repository interface {

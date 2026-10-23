@@ -12,18 +12,13 @@ import (
 	"time"
 )
 
+const base_url = "http://localhost:1323"
+
 type Habit struct {
-	Id          string       `json:"id"`
+	ID          string       `json:"id"`
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
 	Entries     []HabitEntry `json:"entries"`
-	Streak      int          `json:"streak"`
-}
-
-type HabitTwo struct {
-	Id          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
 }
 
 type HabitStreak struct {
@@ -32,13 +27,14 @@ type HabitStreak struct {
 }
 
 type HabitEntry struct {
-	EntryDate string `json:"entry_date"`
-	HabitId   string `json:"habit_id"`
-	Duration  int    `json:"duration"`
+	Date    string `json:"date"`
+	HabitID string `json:"habit_id"`
+	ID      string `json:"id"`
+	// Duration int    `json:"duration"`
 }
 
 type EntryRequest struct {
-	HabitId   string `json:"habit_id"`
+	HabitID   string `json:"habit_id"`
 	EntryDate string `json:"entry_date"`
 	Duration  int    `json:"duration"`
 }
@@ -87,9 +83,9 @@ func PrintMenu() {
 	fmt.Print("Enter command: ")
 }
 
-func ListHabits() []HabitTwo {
-	base_url := "http://localhost:1323/habits"
-	response, err := http.Get(base_url)
+func ListHabits() []Habit {
+	entrypoint := "/habits"
+	response, err := http.Get(base_url + entrypoint)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
@@ -102,7 +98,7 @@ func ListHabits() []HabitTwo {
 		os.Exit(1)
 	}
 
-	var habits []HabitTwo
+	var habits []Habit
 	err = json.Unmarshal(body, &habits)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -115,8 +111,8 @@ func ListHabits() []HabitTwo {
 //
 
 func GetHabits() []Habit {
-	base_url := "http://localhost:8000/api/habits"
-	response, err := http.Get(base_url)
+	entrypoint := "/habits"
+	response, err := http.Get(base_url + entrypoint)
 	if err != nil {
 		fmt.Print(err.Error())
 		os.Exit(1)
@@ -139,14 +135,14 @@ func GetHabits() []Habit {
 }
 
 func PostHabitEntry(entryRequest EntryRequest) {
-	base_url := "http://localhost:8000/api/habit_entries"
+	entrypoint := "/habit_entries"
 	jsonData, err := json.Marshal(entryRequest)
 	if err != nil {
 		fmt.Print(err.Error())
 		os.Exit(1)
 	}
 
-	response, err := http.Post(base_url, "application/json", bytes.NewBuffer(jsonData))
+	response, err := http.Post(base_url+entrypoint, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		fmt.Print(err.Error())
 		os.Exit(1)
@@ -201,7 +197,7 @@ func HabitEntryOptionsMenu(habits []Habit) {
 	}
 
 	var requestBody = EntryRequest{
-		HabitId:   habits[habitChoice-1].Id,
+		HabitID:   habits[habitChoice-1].ID,
 		EntryDate: entryDate,
 		Duration:  duration,
 	}
@@ -213,21 +209,21 @@ func printFetchHabits(habits []Habit) {
 	clear()
 	clear()
 	for _, habit := range habits {
-		fmt.Printf("%s (%s)\n", habit.Name, habit.Id)
+		fmt.Printf("%s (%s)\n", habit.Name, habit.ID)
 		fmt.Printf("Description: %s\n", habit.Description)
-		fmt.Printf("Streak: %d\n", habit.Streak)
+		// fmt.Printf("Streak: %d\n", habit.Streak)
 		fmt.Println("Entries (last 30 days):")
 		PrintStreak(habit)
-		PrintTotalDuration(habit)
+		// PrintTotalDuration(habit)
 		fmt.Println("")
 	}
 }
 
-func printFetchHabitsTwo(habits []HabitTwo) {
+func printFetchHabitsTwo(habits []Habit) {
 	clear()
 	clear()
 	for _, habit := range habits {
-		fmt.Printf("%s (%s)\n", habit.Name, habit.Id)
+		fmt.Printf("%s (%s)\n", habit.Name, habit.ID)
 		fmt.Printf("Description: %s\n", habit.Description)
 		// PrintTotalDuration(habit)
 		fmt.Println("")
@@ -247,7 +243,7 @@ func PrintStreak(habit Habit) {
 	entries := habit.Entries
 	for i := 0; i < n; i++ {
 		for _, entry := range entries {
-			if CompareDates(habitStreak[i].HabitEntryDate, entry.EntryDate) {
+			if CompareDates(habitStreak[i].HabitEntryDate, entry.Date) {
 				habitStreak[i].IsActive = true
 			}
 		}
@@ -264,13 +260,13 @@ func PrintStreak(habit Habit) {
 	fmt.Println("")
 }
 
-func PrintTotalDuration(habit Habit) {
-	totalDuration := 0.0
-	for _, entry := range habit.Entries {
-		totalDuration += float64(entry.Duration)
-	}
-	fmt.Printf("Total duration: %.2f hours\n", totalDuration/60.0)
-}
+// func PrintTotalDuration(habit Habit) {
+// 	totalDuration := 0.0
+// 	for _, entry := range habit.Entries {
+// 		totalDuration += float64(entry.Duration)
+// 	}
+// 	fmt.Printf("Total duration: %.2f hours\n", totalDuration/60.0)
+// }
 
 func CompareDates(date1 string, date2 string) bool {
 	layout := "2006-01-02"
@@ -279,7 +275,7 @@ func CompareDates(date1 string, date2 string) bool {
 		fmt.Print(err.Error())
 		os.Exit(1)
 	}
-	layout2 := "2006-01-02T15:04:05"
+	layout2 := "2006-01-02T15:04:05Z"
 	t2, err := time.Parse(layout2, date2)
 	if err != nil {
 		fmt.Print(err.Error())

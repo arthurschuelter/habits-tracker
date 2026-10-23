@@ -8,10 +8,12 @@ import (
 var ErrNotFound = errors.New("habit entry not found")
 
 type HabitEntry struct {
-	ID   string
-	Date string
+	ID      string
+	HabitID string
+	Date    string
 }
 
 type Repository interface {
 	ListByHabitID(ctx context.Context, habitID string) ([]HabitEntry, error)
+	ListByHabitIDs(ctx context.Context, habitIDs []string) (map[string][]HabitEntry, error)
 }

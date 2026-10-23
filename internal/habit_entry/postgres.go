@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/lib/pq"
 )
 
 var _ Repository = (*PostgresRepo)(nil)
@@ -18,7 +20,7 @@ func NewPostgresRepo(db *sql.DB) *PostgresRepo {
 
 func (r *PostgresRepo) ListByHabitID(ctx context.Context, habitID string) ([]HabitEntry, error) {
 	const q = `
-		SELECT id, entry_date 
+		SELECT id, habit_id, entry_date 
 		FROM habit_entries 
 		WHERE habit_id = $1`
 
@@ -31,7 +33,7 @@ func (r *PostgresRepo) ListByHabitID(ctx context.Context, habitID string) ([]Hab
 	habitEntries := []HabitEntry{}
 	for rows.Next() {
 		var he HabitEntry
-		if err := rows.Scan(&he.ID, &he.Date); err != nil {
+		if err := rows.Scan(&he.ID, &he.HabitID, &he.Date); err != nil {
 			return nil, fmt.Errorf("scan habit entry: %w", err)
 		}
 		habitEntries = append(habitEntries, he)
@@ -41,4 +43,33 @@ func (r *PostgresRepo) ListByHabitID(ctx context.Context, habitID string) ([]Hab
 	}
 
 	return habitEntries, nil
+}
+
+func (r *PostgresRepo) ListByHabitIDs(ctx context.Context, habitIDs []string) (map[string][]HabitEntry, error) {
+	const q = `
+		SELECT id, habit_id, entry_date 
+		FROM habit_entries 
+		WHERE habit_id = ANY($1)
+		ORDER BY entry_date
+	`
+	rows, err := r.db.QueryContext(ctx, q, pq.Array(habitIDs))
+	if err != nil {
+		return nil, fmt.Errorf("list habit entries %w", err)
+	}
+
+	out := make(map[string][]HabitEntry, len(habitIDs))
+	for rows.Next() {
+		var e HabitEntry
+		if err := rows.Scan(&e.ID, &e.HabitID, &e.Date); err != nil {
+			return nil, fmt.Errorf("scan entry: %w", err)
+		}
+		out[e.HabitID] = append(out[e.HabitID], e)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate entries: %w", err)
+	}
+
+	return out, nil
+
 }

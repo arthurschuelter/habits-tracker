@@ -9,6 +9,7 @@ import (
 	_ "github.com/arthurschuelter/habits-tracker/internal/api"
 	"github.com/arthurschuelter/habits-tracker/internal/habit"
 	_ "github.com/arthurschuelter/habits-tracker/internal/habit"
+	"github.com/arthurschuelter/habits-tracker/internal/habit_entry"
 	_ "github.com/lib/pq"
 
 	"github.com/labstack/echo/v5"
@@ -34,7 +35,9 @@ func main() {
 		fmt.Println("Connected!")
 	}
 
-	habitRepo := habit.NewPostgresRepo(db)
+	heRepo := habit_entry.NewPostgresRepo(db)
+
+	habitRepo := habit.NewPostgresRepo(db, heRepo)
 	habitSvc := habit.NewService(habitRepo)
 	habitHandler := api.NewHabitHandler(habitSvc)
 
