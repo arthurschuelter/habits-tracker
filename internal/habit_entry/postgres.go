@@ -73,3 +73,18 @@ func (r *PostgresRepo) ListByHabitIDs(ctx context.Context, habitIDs []string) (m
 	return out, nil
 
 }
+
+func (r *PostgresRepo) Create(ctx context.Context, habitEntry HabitEntry) (HabitEntry, error) {
+	const q = `
+		INSERT INTO habit_entries (habit_id, date)
+		VALUES ($1, $2)
+		RETURNING id, habit_id, to_char(date, 'YYYY-MM-DD')`
+
+	var out HabitEntry
+	err := r.db.QueryRowContext(ctx, q, habitEntry.HabitID, habitEntry.Date).
+		Scan(&out.ID, &out.HabitID, &out.Date)
+	if err != nil {
+		return HabitEntry{}, fmt.Errorf("create habit entry: %w", err)
+	}
+	return out, nil
+}

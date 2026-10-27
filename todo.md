@@ -10,6 +10,7 @@
 
 ## API
 - [ ] POST request
+- [ ] Add Tests
 - [X] API to GO
 
 

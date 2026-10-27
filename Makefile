@@ -12,6 +12,7 @@ tui:
 build:
 	go build -o bin/ ./cmd/...
 
+# go test ./internal/habit_entry/... -v
 test:
 	go test ./...
 
