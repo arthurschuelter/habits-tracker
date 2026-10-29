@@ -1,291 +1,107 @@
 package main
 
+// Components: https://github.com/charmbracelet/bubbles
+
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
-	"os/exec"
-	"slices"
-	"time"
+
+	tea "charm.land/bubbletea/v2"
 )
 
-const base_url = "http://localhost:1323"
-
-type Habit struct {
-	ID          string       `json:"id"`
-	Name        string       `json:"name"`
-	Description string       `json:"description"`
-	Entries     []HabitEntry `json:"entries"`
+type model struct {
+	choices  []string
+	cursor   int
+	selected map[int]struct{}
 }
 
-type HabitStreak struct {
-	HabitEntryDate string
-	IsActive       bool
-}
+func initialModel() model {
+	return model{
+		choices: []string{
+			"Fetch habits",
+			"Add habit entry",
+			"List Habits",
+		},
 
-type HabitEntry struct {
-	Date    string `json:"date"`
-	HabitID string `json:"habit_id"`
-	ID      string `json:"id"`
-	// Duration int    `json:"duration"`
-}
-
-type EntryRequest struct {
-	HabitID   string `json:"habit_id"`
-	EntryDate string `json:"entry_date"`
-	Duration  int    `json:"duration"`
+		selected: make(map[int]struct{}),
+	}
 }
 
 func main() {
-	habits := GetHabits()
-	for {
-
-		var command int
-		PrintMenu()
-
-		_, err := fmt.Scan(&command)
-		if err != nil {
-			fmt.Println("Bye bye")
-			return
-		}
-
-		if command == 1 {
-			fmt.Println("Fetching habits...")
-			habits := GetHabits()
-			printFetchHabits(habits)
-		}
-
-		if command == 2 {
-			HabitEntryOptionsMenu(habits)
-		}
-
-		if command == 3 {
-			habits := ListHabits()
-			printFetchHabitsTwo(habits)
-		}
-
-		if command >= 4 {
-			fmt.Println("Bye bye")
-			return
-		}
+	p := tea.NewProgram(initialModel())
+	if _, err := p.Run(); err != nil {
+		fmt.Printf("Alas, there's been an error: %v", err)
+		os.Exit(1)
 	}
 }
 
-func PrintMenu() {
-	fmt.Println("=======================")
-	fmt.Println("(1) Fetch habits")
-	fmt.Println("(2) Add habit entry")
-	fmt.Println("(3) List Habits")
-	fmt.Println("(4) Exit")
-	fmt.Print("Enter command: ")
+func (m model) Init() tea.Cmd {
+	return nil
 }
 
-func ListHabits() []Habit {
-	entrypoint := "/habits"
-	response, err := http.Get(base_url + entrypoint)
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-	defer response.Body.Close()
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
 
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
+	case tea.KeyPressMsg:
+		switch msg.String() {
 
-	var habits []Habit
-	err = json.Unmarshal(body, &habits)
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
+		// Exit the program.
+		case "ctrl+c", "q":
+			return m, tea.Quit
 
-	return habits
-}
+		// Move the cursor up
+		case "up", "k":
+			if m.cursor > 0 {
+				m.cursor--
+			}
 
-//
+		// Move the cursor down
+		case "down", "j":
+			if m.cursor < len(m.choices)-1 {
+				m.cursor++
+			}
 
-func GetHabits() []Habit {
-	entrypoint := "/habits"
-	response, err := http.Get(base_url + entrypoint)
-	if err != nil {
-		fmt.Print(err.Error())
-		os.Exit(1)
-	}
-	defer response.Body.Close()
-
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		fmt.Print(err.Error())
-		os.Exit(1)
-	}
-
-	var habits []Habit
-	err = json.Unmarshal(body, &habits)
-	if err != nil {
-		fmt.Print(err.Error())
-		os.Exit(1)
-	}
-	return habits
-}
-
-func PostHabitEntry(entryRequest EntryRequest) {
-	entrypoint := "/habit_entries"
-	jsonData, err := json.Marshal(entryRequest)
-	if err != nil {
-		fmt.Print(err.Error())
-		os.Exit(1)
-	}
-
-	response, err := http.Post(base_url+entrypoint, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		fmt.Print(err.Error())
-		os.Exit(1)
-	}
-	defer response.Body.Close()
-	fmt.Println("Habit successfully logged!")
-}
-
-func PrintHabitsOptions(habits []Habit) {
-	for i, habit := range habits {
-		fmt.Printf("(%d) %s\n", i+1, habit.Name)
-	}
-}
-
-func HabitEntryOptionsMenu(habits []Habit) {
-	var habitChoice int
-	clear()
-	fmt.Println("=======================")
-	PrintHabitsOptions(habits)
-	fmt.Print("Enter command: ")
-	_, err := fmt.Scan(&habitChoice)
-	if err != nil {
-		fmt.Print(err.Error())
-		os.Exit(1)
-	}
-	if habitChoice < 1 || habitChoice > len(habits) {
-		fmt.Println("Returning to main menu...")
-		return
-	}
-
-	var entryDate string
-	fmt.Print("Enter date (YYYY-MM-DD) or press Enter for today: ")
-
-	_, err = fmt.Scanln(&entryDate)
-	if err != nil || entryDate == "" {
-		entryDate = time.Now().Format("2006-01-02")
-	}
-
-	fmt.Println("Entry date:", entryDate)
-
-	_, err = time.Parse("2006-01-02", entryDate)
-	if err != nil {
-		fmt.Println("Invalid date:", entryDate)
-		return
-	}
-
-	var duration int
-	fmt.Print("Enter duration in minutes (or Press Enter for 15 minutes): ")
-	_, err = fmt.Scanln(&duration)
-	if err != nil || duration == 0 {
-		duration = 15
-	}
-
-	var requestBody = EntryRequest{
-		HabitID:   habits[habitChoice-1].ID,
-		EntryDate: entryDate,
-		Duration:  duration,
-	}
-
-	PostHabitEntry(requestBody)
-}
-
-func printFetchHabits(habits []Habit) {
-	clear()
-	clear()
-	for _, habit := range habits {
-		fmt.Printf("%s (%s)\n", habit.Name, habit.ID)
-		fmt.Printf("Description: %s\n", habit.Description)
-		// fmt.Printf("Streak: %d\n", habit.Streak)
-		fmt.Println("Entries (last 30 days):")
-		PrintStreak(habit)
-		// PrintTotalDuration(habit)
-		fmt.Println("")
-	}
-}
-
-func printFetchHabitsTwo(habits []Habit) {
-	clear()
-	clear()
-	for _, habit := range habits {
-		fmt.Printf("%s (%s)\n", habit.Name, habit.ID)
-		fmt.Printf("Description: %s\n", habit.Description)
-		// PrintTotalDuration(habit)
-		fmt.Println("")
-	}
-}
-
-func PrintStreak(habit Habit) {
-	n := 30
-	var habitStreak []HabitStreak
-	for i := 0; i < n; i++ {
-		date := time.Now().AddDate(0, 0, -i).Format("2006-01-02")
-		habitStreak = append(habitStreak, HabitStreak{
-			HabitEntryDate: date,
-			IsActive:       false,
-		})
-	}
-	entries := habit.Entries
-	for i := 0; i < n; i++ {
-		for _, entry := range entries {
-			if CompareDates(habitStreak[i].HabitEntryDate, entry.Date) {
-				habitStreak[i].IsActive = true
+		// Select
+		case "enter", "space":
+			switch m.cursor {
+			case 0:
+				m.choices[0] = "Fetching habits..."
+			case 1:
+				m.choices[1] = "Adding habit..."
+			case 2:
+				m.choices[2] = "Listing habits..."
+			}
+			_, ok := m.selected[m.cursor]
+			if ok {
+				delete(m.selected, m.cursor)
+			} else {
+				m.selected[m.cursor] = struct{}{}
 			}
 		}
 	}
-	// fmt.Println(habitStreak)
-	slices.Reverse(habitStreak)
-	for i := 0; i < len(habitStreak); i++ {
-		if habitStreak[i].IsActive {
-			fmt.Print("■ ")
-		} else {
-			fmt.Print("□ ")
+
+	return m, nil
+}
+
+func (m model) View() tea.View {
+	s := "Main Menu\n\n"
+
+	for i, choice := range m.choices {
+
+		cursor := " "
+		if m.cursor == i {
+			cursor = ">"
 		}
-	}
-	fmt.Println("")
-}
 
-// func PrintTotalDuration(habit Habit) {
-// 	totalDuration := 0.0
-// 	for _, entry := range habit.Entries {
-// 		totalDuration += float64(entry.Duration)
-// 	}
-// 	fmt.Printf("Total duration: %.2f hours\n", totalDuration/60.0)
-// }
+		checked := " "
+		if _, ok := m.selected[i]; ok {
+			checked = "x"
+		}
 
-func CompareDates(date1 string, date2 string) bool {
-	layout := "2006-01-02"
-	t1, err := time.Parse(layout, date1)
-	if err != nil {
-		fmt.Print(err.Error())
-		os.Exit(1)
+		s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
 	}
-	layout2 := "2006-01-02T15:04:05Z"
-	t2, err := time.Parse(layout2, date2)
-	if err != nil {
-		fmt.Print(err.Error())
-		os.Exit(1)
-	}
-	return t1.Equal(t2)
-}
 
-func clear() {
-	cmd := exec.Command("clear")
-	cmd.Stdout = os.Stdout
-	cmd.Run()
+	s += "\nPress q to quit.\n"
+
+	return tea.NewView(s)
 }
