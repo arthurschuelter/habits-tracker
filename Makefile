@@ -1,10 +1,13 @@
 .PHONY: run build api run-tui test up down
 run:
 	go run ./cmd/api
-	go run ./cmd/tui
+	go run ./cmd/ui
 
 api:
 	go run ./cmd/api
+
+ui:
+	go run ./cmd/ui
 
 tui:
 	go run ./cmd/tui
