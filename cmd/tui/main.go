@@ -5,22 +5,59 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/lipgloss"
+)
+
+type screen int
+
+const (
+	screenMain screen = iota
+	screenFetchHabits
+	screenListHabits
+	screenTrackHabit
+	screenCreateNewHabit
+)
+
+var (
+	titleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#7EBAE4"))
+	// selectedStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#A6E3A1"))
+	// activeStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#F9E2AF"))
+	// errStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("#F38BA8"))
+	// okStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("#A6E3A1"))
+	helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#6C7086"))
 )
 
 type model struct {
-	choices  []string
-	cursor   int
-	selected map[int]struct{}
+	menuOptions []string
+	habitsList  []string
+	screen      screen
+	input       textinput.Model
+	cursor      int
+	selected    map[int]struct{}
 }
+
+// type model struct {
+// 	p        paths
+// 	screen   screen
+// 	profiles []string
+// 	active   string
+// 	cursor   int
+// 	input    textinput.Model
+// 	msg      string
+// 	isErr    bool
+// }
 
 func initialModel() model {
 	return model{
-		choices: []string{
+		menuOptions: []string{
 			"Fetch habits",
-			"Add habit entry",
 			"List Habits",
+			"Add habit entry",
+			"Create new habit",
 		},
 
 		selected: make(map[int]struct{}),
@@ -36,46 +73,62 @@ func main() {
 }
 
 func (m model) Init() tea.Cmd {
+	m.screen = screenMain
 	return nil
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
+	key, isKey := msg.(tea.KeyMsg)
+	if isKey && key.String() == "ctrl+c" {
+		return m, tea.Quit
+	}
 
-	case tea.KeyPressMsg:
-		switch msg.String() {
+	switch m.screen {
+	case screenListHabits:
+		return m.updateListHabits(msg, key, isKey)
+	case screenMain:
+		return m.updateMain(msg, key, isKey)
+	}
 
-		// Exit the program.
+	return m, nil
+}
+
+func (m model) updateListHabits(msg tea.Msg, key tea.KeyMsg, isKey bool) (tea.Model, tea.Cmd) {
+	if isKey {
+		switch key.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
 
-		// Move the cursor up
+		case "b":
+			m.screen = screenMain
+		}
+	}
+
+	return m, nil
+}
+
+func (m model) updateMain(msg tea.Msg, key tea.KeyMsg, isKey bool) (tea.Model, tea.Cmd) {
+	if isKey {
+		switch key.String() {
+		case "ctrl+c", "q":
+			return m, tea.Quit
+
 		case "up", "k":
 			if m.cursor > 0 {
 				m.cursor--
 			}
 
-		// Move the cursor down
 		case "down", "j":
-			if m.cursor < len(m.choices)-1 {
+			if m.cursor < len(m.menuOptions)-1 {
 				m.cursor++
 			}
 
-		// Select
 		case "enter", "space":
 			switch m.cursor {
-			case 0:
-				m.choices[0] = "Fetching habits..."
 			case 1:
-				m.choices[1] = "Adding habit..."
-			case 2:
-				m.choices[2] = "Listing habits..."
-			}
-			_, ok := m.selected[m.cursor]
-			if ok {
-				delete(m.selected, m.cursor)
-			} else {
-				m.selected[m.cursor] = struct{}{}
+				m.screen = screenListHabits
+			default:
+				m.screen = screenMain
 			}
 		}
 	}
@@ -84,24 +137,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() tea.View {
-	s := "Main Menu\n\n"
+	var b strings.Builder
+	b.WriteString(titleStyle.Render("Main Menu") + "\n\n")
 
-	for i, choice := range m.choices {
-
-		cursor := " "
-		if m.cursor == i {
-			cursor = ">"
+	switch m.screen {
+	case screenListHabits:
+		for _, habit := range m.habitsList {
+			cursor, line := "  ", habit
+			b.WriteString(cursor + line + "\n")
 		}
 
-		checked := " "
-		if _, ok := m.selected[i]; ok {
-			checked = "x"
-		}
+	case screenMain:
+		for i, option := range m.menuOptions {
+			cursor, line := "  ", option
+			if m.cursor == i {
+				cursor = "> "
+			}
 
-		s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
+			b.WriteString(cursor + line + "\n")
+		}
 	}
 
-	s += "\nPress q to quit.\n"
-
+	b.WriteString(helpStyle.Render("\n↑/↓: move • enter: activate • n: new profile • q: exit • b: return"))
+	s := b.String() + "\n"
 	return tea.NewView(s)
+
 }
