@@ -3,9 +3,12 @@ package main
 // Components: https://github.com/charmbracelet/bubbles
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -33,23 +36,52 @@ var (
 
 type model struct {
 	menuOptions []string
-	habitsList  []string
+	habitsList  []apiHabit
+	loading     bool
+	fetchErr    error
 	screen      screen
 	input       textinput.Model
 	cursor      int
-	selected    map[int]struct{}
 }
 
-// type model struct {
-// 	p        paths
-// 	screen   screen
-// 	profiles []string
-// 	active   string
-// 	cursor   int
-// 	input    textinput.Model
-// 	msg      string
-// 	isErr    bool
-// }
+type apiHabit struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type habitsFetchedMsg struct {
+	habits []apiHabit
+	err    error
+}
+
+func fetchHabits(baseURL string) tea.Cmd {
+	return func() tea.Msg {
+		client := &http.Client{Timeout: 10 * time.Second}
+		response, err := client.Get(strings.TrimRight(baseURL, "/") + "/habits")
+		if err != nil {
+			return habitsFetchedMsg{err: fmt.Errorf("fetch habits: %w", err)}
+		}
+		defer response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			return habitsFetchedMsg{err: fmt.Errorf("fetch habits: %s", response.Status)}
+		}
+		var habits []apiHabit
+		if err := json.NewDecoder(response.Body).Decode(&habits); err != nil {
+			return habitsFetchedMsg{err: fmt.Errorf("decode habits: %w", err)}
+		}
+		return habitsFetchedMsg{habits: habits}
+	}
+}
+
+func (m model) refreshHabits() (tea.Model, tea.Cmd) {
+	if m.loading {
+		return m, nil
+	}
+	m.loading = true
+	m.fetchErr = nil
+	return m, fetchHabits("http://localhost:1323")
+}
 
 func initialModel() model {
 	return model{
@@ -59,8 +91,6 @@ func initialModel() model {
 			"Add habit entry",
 			"Create new habit",
 		},
-
-		selected: make(map[int]struct{}),
 	}
 }
 
@@ -78,6 +108,15 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if result, ok := msg.(habitsFetchedMsg); ok {
+		m.loading = false
+		m.fetchErr = result.err
+		if result.err == nil {
+			m.habitsList = result.habits
+		}
+		return m, nil
+	}
+
 	key, isKey := msg.(tea.KeyMsg)
 	if isKey && key.String() == "ctrl+c" {
 		return m, tea.Quit
@@ -101,6 +140,8 @@ func (m model) updateListHabits(msg tea.Msg, key tea.KeyMsg, isKey bool) (tea.Mo
 
 		case "b":
 			m.screen = screenMain
+		case "r":
+			return m.refreshHabits()
 		}
 	}
 
@@ -125,8 +166,12 @@ func (m model) updateMain(msg tea.Msg, key tea.KeyMsg, isKey bool) (tea.Model, t
 
 		case "enter", "space":
 			switch m.cursor {
+			// case 0:
+			// m.screen = screenListHabits
+			// return m.refreshHabits()
 			case 1:
 				m.screen = screenListHabits
+				return m.refreshHabits()
 			default:
 				m.screen = screenMain
 			}
@@ -138,13 +183,28 @@ func (m model) updateMain(msg tea.Msg, key tea.KeyMsg, isKey bool) (tea.Model, t
 
 func (m model) View() tea.View {
 	var b strings.Builder
-	b.WriteString(titleStyle.Render("Main Menu") + "\n\n")
+	title := "Main Menu"
+	if m.screen == screenListHabits {
+		title = "Active Habits"
+	}
+	_, _ = b.WriteString(titleStyle.Render(title) + "\n\n")
+	if m.loading {
+		_, _ = b.WriteString("Fetching habits...\n\n")
+	}
+	if m.fetchErr != nil {
+		_, _ = b.WriteString("Could not refresh habits: " + m.fetchErr.Error() + "\n\n")
+	}
 
 	switch m.screen {
 	case screenListHabits:
+		if len(m.habitsList) == 0 && !m.loading && m.fetchErr == nil {
+			_, _ = b.WriteString("No habits loaded. Press r to fetch habits.\n")
+		}
 		for _, habit := range m.habitsList {
-			cursor, line := "  ", habit
-			b.WriteString(cursor + line + "\n")
+			_, _ = b.WriteString("  - " + habit.Name + "\n")
+			if habit.Description != "" {
+				_, _ = b.WriteString("    " + habit.Description + "\n")
+			}
 		}
 
 	case screenMain:
@@ -154,11 +214,15 @@ func (m model) View() tea.View {
 				cursor = "> "
 			}
 
-			b.WriteString(cursor + line + "\n")
+			_, _ = b.WriteString(cursor + line + "\n")
 		}
 	}
 
-	b.WriteString(helpStyle.Render("\n↑/↓: move • enter: activate • n: new profile • q: exit • b: return"))
+	if m.screen == screenListHabits {
+		_, _ = b.WriteString(helpStyle.Render("\nr: refresh • b: return • q: exit"))
+	} else {
+		_, _ = b.WriteString(helpStyle.Render("\n↑/↓: move • enter: activate • q: exit"))
+	}
 	s := b.String() + "\n"
 	return tea.NewView(s)
 
