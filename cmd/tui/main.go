@@ -1,7 +1,5 @@
 package main
 
-// Components: https://github.com/charmbracelet/bubbles
-
 import (
 	"encoding/json"
 	"fmt"
@@ -103,7 +101,7 @@ func main() {
 }
 
 func (m model) Init() tea.Cmd {
-	m.screen = screenMain
+	// m.screen = screenMain
 	return nil
 }
 
@@ -197,25 +195,11 @@ func (m model) View() tea.View {
 
 	switch m.screen {
 	case screenListHabits:
-		if len(m.habitsList) == 0 && !m.loading && m.fetchErr == nil {
-			_, _ = b.WriteString("No habits loaded. Press r to fetch habits.\n")
-		}
-		for _, habit := range m.habitsList {
-			_, _ = b.WriteString("  - " + habit.Name + "\n")
-			if habit.Description != "" {
-				_, _ = b.WriteString("    " + habit.Description + "\n")
-			}
-		}
+		_, _ = b.WriteString(m.ListHabitsView())
 
 	case screenMain:
-		for i, option := range m.menuOptions {
-			cursor, line := "  ", option
-			if m.cursor == i {
-				cursor = "> "
-			}
+		_, _ = b.WriteString(m.MainMenuView())
 
-			_, _ = b.WriteString(cursor + line + "\n")
-		}
 	}
 
 	if m.screen == screenListHabits {
@@ -225,5 +209,34 @@ func (m model) View() tea.View {
 	}
 	s := b.String() + "\n"
 	return tea.NewView(s)
+}
 
+func (m model) ListHabitsView() string {
+	var b strings.Builder
+	if len(m.habitsList) == 0 && !m.loading && m.fetchErr == nil {
+		_, _ = b.WriteString("No habits loaded. Press r to fetch habits.\n")
+	}
+	for _, habit := range m.habitsList {
+		_, _ = b.WriteString("  - " + habit.Name + "\n")
+		if habit.Description != "" {
+			_, _ = b.WriteString("    " + habit.Description + "\n")
+		}
+	}
+
+	return b.String()
+}
+
+func (m model) MainMenuView() string {
+	var b strings.Builder
+
+	for i, option := range m.menuOptions {
+		cursor, line := "  ", option
+		if m.cursor == i {
+			cursor = "> "
+		}
+
+		_, _ = b.WriteString(cursor + line + "\n")
+	}
+
+	return b.String()
 }
