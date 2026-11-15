@@ -1,11 +1,13 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/arthurschuelter/habits-tracker/internal/habit"
+	"github.com/arthurschuelter/habits-tracker/internal/habit_entry"
 	"github.com/labstack/echo/v5"
 )
 
@@ -13,7 +15,8 @@ import (
 const currentUserID = "0a483f13-1ffc-4f85-aa71-98a9b96fedfe"
 
 type HabitHandler struct {
-	habits *habit.Service
+	habits  *habit.Service
+	entries *habit_entry.Service
 }
 
 type habitResponse struct {
@@ -22,13 +25,14 @@ type habitResponse struct {
 	Description string `json:"description"`
 }
 
-func NewHabitHandler(s *habit.Service) *HabitHandler {
-	return &HabitHandler{habits: s}
+func NewHabitHandler(h *habit.Service, he *habit_entry.Service) *HabitHandler {
+	return &HabitHandler{habits: h, entries: he}
 }
 
 func (h *HabitHandler) Routes(e *echo.Echo) {
 	e.GET("/habits", h.GetHabits)
 	e.POST("/habits", h.CreateHabits)
+	e.POST("/habit_entries", h.CreateHabitEntries)
 }
 
 func toHabitResponse(hb habit.Habit) habitResponse {
@@ -81,6 +85,40 @@ func (h *HabitHandler) CreateHabits(ctx *echo.Context) error {
 
 	if err := h.habits.Create(ctx.Request().Context(), &hb); err != nil {
 		return fmt.Errorf("create habit: %w", err)
+	}
+
+	return ctx.NoContent(http.StatusCreated)
+}
+
+func (h *HabitHandler) CreateHabitEntries(ctx *echo.Context) error {
+	var entryRequest struct {
+		HabitID  string `json:"habit_id"`
+		Date     string `json:"date"`
+		Duration int    `json:"duration"`
+	}
+
+	if err := ctx.Bind(&entryRequest); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
+	}
+
+	entry := habit_entry.HabitEntry{
+		HabitID:  entryRequest.HabitID,
+		Date:     entryRequest.Date,
+		Duration: entryRequest.Duration,
+	}
+
+	if _, err := h.entries.Create(ctx.Request().Context(), &entry); err != nil {
+		if errors.Is(err, habit_entry.ErrHabitNotFound) {
+			return echo.NewHTTPError(http.StatusNotFound, habit_entry.ErrHabitNotFound.Error())
+		}
+		if errors.Is(err, habit_entry.ErrConflict) {
+			return echo.NewHTTPError(http.StatusConflict, habit_entry.ErrConflict.Error())
+		}
+		var validationErr *habit_entry.ValidationError
+		if errors.As(err, &validationErr) {
+			return echo.NewHTTPError(http.StatusBadRequest, validationErr.Error())
+		}
+		return fmt.Errorf("create habit entry: %w", err)
 	}
 
 	return ctx.NoContent(http.StatusCreated)

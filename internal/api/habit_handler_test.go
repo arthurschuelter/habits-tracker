@@ -40,9 +40,9 @@ func TestCreateHabitFromForm(t *testing.T) {
 		{"invalid JSON", `{`, http.StatusBadRequest},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := &createRepository{}
 			e := echo.New()
-			NewHabitHandler(habit.NewService(repo)).Routes(e)
+			habitsRepo := &createRepository{}
+			NewHabitHandler(habit.NewService(habitsRepo), nil).Routes(e)
 			req := httptest.NewRequest(http.MethodPost, "/habits", strings.NewReader(tt.body))
 			req.Header.Set("Content-Type", "application/json")
 			rec := httptest.NewRecorder()
@@ -51,13 +51,13 @@ func TestCreateHabitFromForm(t *testing.T) {
 				t.Fatalf("status = %d, want %d; body = %s", rec.Code, tt.status, rec.Body.String())
 			}
 			if tt.status == http.StatusCreated {
-				if repo.created == nil || repo.created.Name != "Read" || repo.created.UserID != currentUserID {
-					t.Fatalf("unexpected saved habit: %+v", repo.created)
+				if habitsRepo.created == nil || habitsRepo.created.Name != "Read" || habitsRepo.created.UserID != currentUserID {
+					t.Fatalf("unexpected saved habit: %+v", habitsRepo.created)
 				}
-				if tt.name == "valid" && repo.created.Description != "20 minutes" {
-					t.Fatalf("description = %q", repo.created.Description)
+				if tt.name == "valid" && habitsRepo.created.Description != "20 minutes" {
+					t.Fatalf("description = %q", habitsRepo.created.Description)
 				}
-			} else if repo.created != nil {
+			} else if habitsRepo.created != nil {
 				t.Fatal("invalid request should not reach the repository")
 			}
 		})

@@ -102,11 +102,17 @@ func TestCreateHabitEntryFailureAndRetry(t *testing.T) {
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyTab})
 	m, _ = updateModel(t, m, tea.PasteMsg{Content: " 30 "})
 	m, save := updateModel(t, m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	if save == nil || !m.entryForm.saving {
+		t.Fatal("ctrl+s should schedule a save")
+	}
 	m, _ = updateModel(t, m, save())
 	if m.entryForm.saving || !m.entryForm.duration.Focused() || !strings.Contains(m.View().Content, "API unavailable") || m.entryForm.date.Value() != " 2026-11-14 " || m.entryForm.duration.Value() != " 30 " {
 		t.Fatal("failed save should preserve input, restore focus, and display the error")
 	}
 	m, retry := updateModel(t, m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	if retry == nil || !m.entryForm.saving {
+		t.Fatal("ctrl+s should schedule a retry after a failed save")
+	}
 	m, _ = updateModel(t, m, retry())
 	if calls != 2 || m.screen != screenMain {
 		t.Fatal("retry should save the preserved values")
@@ -122,6 +128,7 @@ func TestCreateHabitEntryValidation(t *testing.T) {
 		{"impossible date", "2026-02-30", "15", "valid date", 1},
 		{"zero duration", "2026-11-15", "0", "positive whole number", 2},
 		{"negative duration", "2026-11-15", "-1", "positive whole number", 2},
+		{"duration exceeds limit", "2026-11-15", "32768", "between 1 and 32767", 2},
 		{"fractional duration", "2026-11-15", "1.5", "positive whole number", 2},
 		{"text duration", "2026-11-15", "abc", "positive whole number", 2},
 	} {

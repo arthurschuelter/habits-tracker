@@ -48,11 +48,13 @@ func main() {
 	}
 	defer db.Close()
 
-	heRepo := habit_entry.NewPostgresRepo(db)
+	entriesRepo := habit_entry.NewPostgresRepo(db)
+	entriesSvc := habit_entry.NewService(entriesRepo)
 
-	habitRepo := habit.NewPostgresRepo(db, heRepo)
+	habitRepo := habit.NewPostgresRepo(db, entriesRepo)
 	habitSvc := habit.NewService(habitRepo)
-	habitHandler := api.NewHabitHandler(habitSvc)
+
+	habitHandler := api.NewHabitHandler(habitSvc, entriesSvc)
 
 	e := echo.New()
 

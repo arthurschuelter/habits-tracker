@@ -91,7 +91,7 @@ func TestFetchCompletesAfterReturningToMenu(t *testing.T) {
 		t.Fatal("reopening the list with space should schedule a refresh")
 	}
 	view := m.View().Content
-	for _, text := range []string{"Active Habits", "Read", "Read daily", "r: refresh • b: return • q: exit"} {
+	for _, text := range []string{"Active Habits", "Read", "Read daily", "r: refresh • b/esc: return • q: exit"} {
 		if !strings.Contains(view, text) {
 			t.Errorf("list view is missing %q", text)
 		}

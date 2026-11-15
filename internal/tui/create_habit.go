@@ -11,7 +11,7 @@ import (
 
 const (
 	createHabitTitle = "Create new habit"
-	createHabitHelp  = "\ntab/shift+tab: move • enter: newline/save • esc: cancel • ctrl+c: exit"
+	createHabitHelp  = "\ntab/shift+tab: move • enter: newline/save • ctrl+s: save • esc: cancel • ctrl+c: exit"
 )
 
 type habitForm struct {
@@ -66,6 +66,8 @@ func (m Model) updateCreateHabit(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if key, ok := msg.(tea.KeyPressMsg); ok {
 		switch key.String() {
+		case "ctrl+s":
+			return m.submitHabit()
 		case "esc":
 			return m.navigateTo(screenMain)
 		case "tab":

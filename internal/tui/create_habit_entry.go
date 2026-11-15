@@ -9,6 +9,7 @@ import (
 	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
+	"github.com/arthurschuelter/habits-tracker/internal/habit_entry"
 	"github.com/arthurschuelter/habits-tracker/internal/habitclient"
 )
 
@@ -100,6 +101,8 @@ func (m Model) updateCreateHabitEntry(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if key, ok := msg.(tea.KeyPressMsg); ok {
 		switch key.String() {
+		case "ctrl+s":
+			return m.submitHabitEntry()
 		case "esc":
 			return m.navigateTo(screenMain)
 		case "tab":
@@ -160,11 +163,16 @@ func (m Model) submitHabitEntry() (tea.Model, tea.Cmd) {
 	if value := strings.TrimSpace(f.duration.Value()); value != "" {
 		var err error
 		duration, err = strconv.Atoi(value)
-		if err != nil || duration <= 0 {
+		if err != nil {
 			f.err = errors.New("Duration must be a positive whole number of minutes.")
 			cmd := f.focusField(2)
 			return m, cmd
 		}
+	}
+	if err := habit_entry.ValidateDuration(duration); err != nil {
+		f.err = err
+		cmd := f.focusField(2)
+		return m, cmd
 	}
 	f.err = nil
 	f.saving = true
