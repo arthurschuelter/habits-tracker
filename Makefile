@@ -1,4 +1,4 @@
-.PHONY: run build api run-tui test up down
+.PHONY: run build api run-tui test up down migrate
 run:
 	go run ./cmd/api
 	go run ./cmd/ui
@@ -24,3 +24,8 @@ up:
 
 down:
 	docker-compose down
+
+migrate:
+	@set -a; . ./.env; set +a; \
+		go run github.com/pressly/goose/v3/cmd/goose@v3.29.0 -dir migrations \
+		postgres "host=localhost port=$$DB_PORT user=$$DB_USER password=$$DB_PASSWORD dbname=$$DB_NAME sslmode=disable" up
