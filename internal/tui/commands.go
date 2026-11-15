@@ -29,6 +29,16 @@ func createHabit(client HabitClient, name, description string) tea.Cmd {
 	}
 }
 
+type habitEntryCreatedMsg struct {
+	err error
+}
+
+func createHabitEntry(client HabitClient, request habitclient.EntryRequest) tea.Cmd {
+	return func() tea.Msg {
+		return habitEntryCreatedMsg{err: client.CreateHabitEntry(context.Background(), request)}
+	}
+}
+
 func (m Model) refreshHabits() (Model, tea.Cmd) {
 	if m.loading {
 		return m, nil

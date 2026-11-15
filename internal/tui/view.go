@@ -9,6 +9,8 @@ import (
 func (m Model) View() tea.View {
 	title, help, content := mainMenuTitle, mainMenuHelp, ""
 	switch m.screen {
+	case screenTrackHabit:
+		title, help, content = createHabitEntryTitle, createHabitEntryHelp, m.createHabitEntryView()
 	case screenCreateNewHabit:
 		title, help, content = createHabitTitle, createHabitHelp, m.createHabitView()
 	case screenListHabits:
@@ -19,6 +21,9 @@ func (m Model) View() tea.View {
 
 	var b strings.Builder
 	b.WriteString(titleStyle.Render(title) + "\n\n")
+	if m.notice != "" {
+		b.WriteString(m.notice + "\n\n")
+	}
 	if m.loading {
 		b.WriteString("Fetching habits...\n\n")
 	}

@@ -8,7 +8,7 @@ import (
 
 const (
 	habitsListTitle = "Active Habits"
-	habitsListHelp  = "\nr: refresh • b: return • q: exit"
+	habitsListHelp  = "\nr: refresh • b/esc: return • q: exit"
 )
 
 func (m Model) updateListHabits(key tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -16,6 +16,8 @@ func (m Model) updateListHabits(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "q":
 		return m, tea.Quit
 	case "b":
+		return m.navigateTo(screenMain)
+	case "esc":
 		return m.navigateTo(screenMain)
 	case "r":
 		return m.refreshHabits()

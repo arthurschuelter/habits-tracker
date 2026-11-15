@@ -21,6 +21,10 @@ func (f habitListerFunc) CreateHabit(context.Context, string, string) error {
 	return errors.New("unexpected create request")
 }
 
+func (f habitListerFunc) CreateHabitEntry(context.Context, habitclient.EntryRequest) error {
+	return errors.New("unexpected entry request")
+}
+
 func updateModel(t *testing.T, m Model, msg tea.Msg) (Model, tea.Cmd) {
 	t.Helper()
 	next, cmd := m.Update(msg)
