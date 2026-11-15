@@ -23,12 +23,14 @@ type Model struct {
 	screen      screen
 	form        habitForm
 	cursor      int
+	width       int
 }
 
 // New creates the TUI's initial model.
 func New(client HabitClient) Model {
 	return Model{
 		client: client,
+		width:  64,
 		menuOptions: []string{
 			"Fetch habits",
 			"List Habits",
@@ -49,7 +51,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if result.err == nil {
 			return m.navigateTo(screenListHabits)
 		}
-		return m, nil
+		cmd := m.form.focusField(m.form.focus)
+		return m, cmd
 	}
 	if result, ok := msg.(habitsFetchedMsg); ok {
 		m.loading = false
@@ -60,24 +63,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if paste, ok := msg.(tea.PasteMsg); ok && m.screen == screenCreateNewHabit && !m.form.saving {
-		if m.form.focus < len(m.form.fields) {
-			m.form.fields[m.form.focus].insert(paste.Content)
-		}
-		return m, nil
+	if size, ok := msg.(tea.WindowSizeMsg); ok {
+		m.width = size.Width
 	}
 
 	key, isKey := msg.(tea.KeyPressMsg)
+	if isKey && key.String() == "ctrl+c" {
+		return m, tea.Quit
+	}
+	if m.screen == screenCreateNewHabit {
+		return m.updateCreateHabit(msg)
+	}
 	if !isKey {
 		return m, nil
 	}
-	if key.String() == "ctrl+c" {
-		return m, tea.Quit
-	}
 
 	switch m.screen {
-	case screenCreateNewHabit:
-		return m.updateCreateHabit(key)
 	case screenListHabits:
 		return m.updateListHabits(key)
 	case screenMain:

@@ -61,7 +61,7 @@ func TestCreateHabitSaveFailureAndRetry(t *testing.T) {
 		t.Fatal("save scheduled a duplicate request")
 	}
 	m, _ = updateModel(t, m, save())
-	if m.form.saving || !strings.Contains(m.View().Content, "API unavailable") || string(m.form.fields[0].value) != " Read " {
+	if m.form.saving || !strings.Contains(m.View().Content, "API unavailable") || m.form.name.Value() != " Read " {
 		t.Fatal("failed save should preserve the form and display the error")
 	}
 	m, retry := updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -84,8 +84,8 @@ func TestCreateHabitRequiresNameAndCanCancel(t *testing.T) {
 	}
 	m, _ = updateModel(t, m, tea.PasteMsg{Content: "   "})
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
-	m, save := updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
-	if save != nil || m.form.focus != 0 || !strings.Contains(m.View().Content, "Name is required") {
+	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	if m.form.saving || m.form.focus != 0 || !m.form.name.Focused() || !strings.Contains(m.View().Content, "Name is required") {
 		t.Fatal("blank name should be rejected before making a request")
 	}
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEscape})
@@ -102,16 +102,56 @@ func TestCreateHabitTextEditing(t *testing.T) {
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyBackspace})
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyHome})
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyDelete})
-	if got := string(m.form.fields[0].value); got != "caf" {
+	if got := m.form.name.Value(); got != "caf" {
 		t.Fatalf("edited name = %q, want caf", got)
 	}
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyTab})
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
-	if m.form.focus != 0 {
+	if m.form.focus != 0 || !m.form.name.Focused() || m.form.description.Focused() {
 		t.Fatal("shift+tab should focus the previous field")
 	}
 	_, quit := updateModel(t, m, tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	if quit == nil {
 		t.Fatal("ctrl+c should quit from the form")
+	}
+}
+
+func TestCreateHabitMultilineDescription(t *testing.T) {
+	const description = "Read daily\n20 minutes"
+	calls := 0
+	m := openHabitForm(t, New(formClient{
+		create: func(_ context.Context, name, got string) error {
+			calls++
+			if name != "Read" || got != description {
+				t.Fatalf("saved name = %q, description = %q", name, got)
+			}
+			return nil
+		},
+	}))
+	m, _ = updateModel(t, m, tea.PasteMsg{Content: "Read"})
+	m, focus := updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if focus == nil || !m.form.description.Focused() || m.form.name.Focused() {
+		t.Fatal("enter in the name should focus the description and schedule its cursor")
+	}
+	m, _ = updateModel(t, m, tea.PasteMsg{Content: "Read daily"})
+	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	m, _ = updateModel(t, m, tea.PasteMsg{Content: "20 minutes"})
+	if m.form.saving || m.form.description.Value() != description {
+		t.Fatal("enter in the description should insert a newline without saving")
+	}
+	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyUp})
+	if m.form.focus != 1 || m.form.description.Line() != 0 {
+		t.Fatal("arrow keys should navigate description lines without changing fields")
+	}
+	m, _ = updateModel(t, m, tea.WindowSizeMsg{Width: 30, Height: 24})
+	if m.form.name.Width() != 26 || m.form.description.Width() != 26 || m.form.description.Value() != description {
+		t.Fatal("resize should adjust both components without losing input")
+	}
+	m, save := updateModel(t, m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	if !m.form.saving || save == nil || calls != 0 {
+		t.Fatal("ctrl+s should schedule a save from the description")
+	}
+	if result := save().(habitCreatedMsg); result.err != nil || calls != 1 {
+		t.Fatalf("save failed: %v (calls: %d)", result.err, calls)
 	}
 }

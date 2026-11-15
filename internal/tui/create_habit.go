@@ -3,141 +3,121 @@ package tui
 import (
 	"errors"
 	"strings"
-	"unicode"
 
+	"charm.land/bubbles/v2/textarea"
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/lipgloss"
 )
 
 const (
 	createHabitTitle = "Create new habit"
-	createHabitHelp  = "\n↑/↓: move • enter: save • esc: cancel • ctrl+c: exit"
+	createHabitHelp  = "\ntab/shift+tab: move • enter: newline/save • esc: cancel • ctrl+c: exit"
 )
 
 type habitForm struct {
-	fields [2]formField
-	focus  int
-	saving bool
-	err    error
+	name        textinput.Model
+	description textarea.Model
+	focus       int
+	saving      bool
+	err         error
 }
 
-type formField struct {
-	value  []rune
-	cursor int
+func newHabitForm(width int) habitForm {
+	name := textinput.New()
+	name.Prompt = ""
+	name.Placeholder = "e.g. Read"
+
+	description := textarea.New()
+	description.Prompt = ""
+	description.Placeholder = "e.g. Read for 20 minutes every day"
+	description.ShowLineNumbers = false
+	description.SetHeight(4)
+
+	f := habitForm{name: name, description: description}
+	f.resize(width)
+	return f
 }
 
-func (f *formField) insert(text string) {
-	text = strings.Map(func(r rune) rune {
-		if r == '\n' || r == '\r' || r == '\t' {
-			return ' '
-		}
-		if unicode.IsControl(r) {
-			return -1
-		}
-		return r
-	}, text)
-	chars := []rune(text)
-	next := append([]rune{}, f.value[:f.cursor]...)
-	next = append(next, chars...)
-	f.value = append(next, f.value[f.cursor:]...)
-	f.cursor += len(chars)
+func (f *habitForm) resize(width int) {
+	width = max(1, min(60, width-4))
+	f.name.SetWidth(width)
+	f.description.SetWidth(width)
 }
 
-func (f *formField) update(key tea.KeyPressMsg) {
-	switch key.String() {
-	case "left":
-		if f.cursor > 0 {
-			f.cursor--
-		}
-	case "right":
-		if f.cursor < len(f.value) {
-			f.cursor++
-		}
-	case "home", "ctrl+a":
-		f.cursor = 0
-	case "end", "ctrl+e":
-		f.cursor = len(f.value)
-	case "backspace":
-		if f.cursor > 0 {
-			f.value = append(f.value[:f.cursor-1], f.value[f.cursor:]...)
-			f.cursor--
-		}
-	case "delete":
-		if f.cursor < len(f.value) {
-			f.value = append(f.value[:f.cursor], f.value[f.cursor+1:]...)
-		}
-	case "ctrl+u":
-		f.value = f.value[f.cursor:]
-		f.cursor = 0
-	default:
-		f.insert(key.Text)
+func (f *habitForm) focusField(next int) tea.Cmd {
+	f.name.Blur()
+	f.description.Blur()
+	f.focus = next
+	switch next {
+	case 0:
+		return f.name.Focus()
+	case 1:
+		return f.description.Focus()
 	}
+	return nil
 }
 
-func (f formField) view(focused bool, placeholder string) string {
-	if !focused {
-		if len(f.value) == 0 {
-			return helpStyle.Render(placeholder)
-		}
-		return string(f.value)
+func (m Model) updateCreateHabit(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if size, ok := msg.(tea.WindowSizeMsg); ok {
+		m.form.resize(size.Width)
 	}
-	char, after := " ", ""
-	if f.cursor < len(f.value) {
-		char = string(f.value[f.cursor])
-		after = string(f.value[f.cursor+1:])
-	}
-	text := string(f.value[:f.cursor]) + lipgloss.NewStyle().Reverse(true).Render(char) + after
-	if len(f.value) == 0 {
-		text += helpStyle.Render(placeholder)
-	}
-	return text
-}
-
-func (m Model) updateCreateHabit(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.form.saving {
 		return m, nil
 	}
-	switch key.String() {
-	case "esc":
-		return m.navigateTo(screenMain)
-	case "tab", "down":
-		m.form.focus = (m.form.focus + 1) % 3
-	case "shift+tab", "up":
-		m.form.focus = (m.form.focus + 2) % 3
-	case "enter":
-		if m.form.focus == 0 {
-			m.form.focus = 1
-			return m, nil
-		}
-		name := strings.TrimSpace(string(m.form.fields[0].value))
-		if name == "" {
-			m.form.err = errors.New("Name is required.")
-			m.form.focus = 0
-			return m, nil
-		}
-		m.form.saving = true
-		m.form.err = nil
-		return m, createHabit(m.client, name, strings.TrimSpace(string(m.form.fields[1].value)))
-	default:
-		if m.form.focus < len(m.form.fields) {
-			m.form.fields[m.form.focus].update(key)
+	if key, ok := msg.(tea.KeyPressMsg); ok {
+		switch key.String() {
+		case "esc":
+			return m.navigateTo(screenMain)
+		case "tab":
+			cmd := m.form.focusField((m.form.focus + 1) % 3)
+			return m, cmd
+		case "shift+tab":
+			cmd := m.form.focusField((m.form.focus + 2) % 3)
+			return m, cmd
+		case "enter":
+			switch m.form.focus {
+			case 0:
+				cmd := m.form.focusField(1)
+				return m, cmd
+			case 2:
+				return m.submitHabit()
+			}
 		}
 	}
-	return m, nil
+
+	var cmd tea.Cmd
+	switch m.form.focus {
+	case 0:
+		m.form.name, cmd = m.form.name.Update(msg)
+	case 1:
+		m.form.description, cmd = m.form.description.Update(msg)
+	}
+	return m, cmd
+}
+
+func (m Model) submitHabit() (tea.Model, tea.Cmd) {
+	name := strings.TrimSpace(m.form.name.Value())
+	if name == "" {
+		m.form.err = errors.New("Name is required.")
+		cmd := m.form.focusField(0)
+		return m, cmd
+	}
+	m.form.saving = true
+	m.form.err = nil
+	return m, createHabit(m.client, name, strings.TrimSpace(m.form.description.Value()))
 }
 
 func (m Model) createHabitView() string {
 	var b strings.Builder
-	for i, label := range []string{"Name", "Description (optional)"} {
+	for i, field := range []struct{ label, view string }{
+		{"Name", m.form.name.View()},
+		{"Description (optional)", m.form.description.View()},
+	} {
 		prefix := "  "
 		if m.form.focus == i {
 			prefix = "> "
 		}
-		placeholder := "e.g. Read"
-		if i == 1 {
-			placeholder = "e.g. Read for 20 minutes every day"
-		}
-		b.WriteString(prefix + label + "\n  " + m.form.fields[i].view(m.form.focus == i, placeholder) + "\n\n")
+		b.WriteString(prefix + field.label + "\n" + field.view + "\n\n")
 	}
 	if m.form.focus == 2 {
 		b.WriteString("> [ Save habit ]\n")
