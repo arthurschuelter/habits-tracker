@@ -88,3 +88,17 @@ func (r *PostgresRepo) ListByUserID(ctx context.Context, userID string) ([]Habit
 
 	return habits, nil
 }
+
+func (r *PostgresRepo) Create(ctx context.Context, h *Habit) error {
+	const q = ` 
+		INSERT INTO habits (name, description, user_id) 
+		VALUES ($1, $2, $3)
+	`
+
+	_, err := r.db.ExecContext(ctx, q, h.Name, h.Description, h.UserID)
+	if err != nil {
+		return fmt.Errorf("insert habits for user %s: %w", h.UserID, err)
+	}
+
+	return nil
+}

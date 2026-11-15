@@ -12,10 +12,20 @@ type habitsFetchedMsg struct {
 	err    error
 }
 
-func fetchHabits(client HabitLister) tea.Cmd {
+func fetchHabits(client HabitClient) tea.Cmd {
 	return func() tea.Msg {
 		habits, err := client.ListHabits(context.Background())
 		return habitsFetchedMsg{habits: habits, err: err}
+	}
+}
+
+type habitCreatedMsg struct {
+	err error
+}
+
+func createHabit(client HabitClient, name, description string) tea.Cmd {
+	return func() tea.Msg {
+		return habitCreatedMsg{err: client.CreateHabit(context.Background(), name, description)}
 	}
 }
 

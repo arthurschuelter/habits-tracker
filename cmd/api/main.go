@@ -2,14 +2,16 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
+	"log"
+	"net"
 	"net/http"
+	"net/url"
+	"os"
 
 	"github.com/arthurschuelter/habits-tracker/internal/api"
-	_ "github.com/arthurschuelter/habits-tracker/internal/api"
 	"github.com/arthurschuelter/habits-tracker/internal/habit"
-	_ "github.com/arthurschuelter/habits-tracker/internal/habit"
 	"github.com/arthurschuelter/habits-tracker/internal/habit_entry"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 
 	"github.com/labstack/echo/v5"
@@ -17,23 +19,34 @@ import (
 )
 
 const PostgresDriver = "postgres"
-const Host = "localhost"
-const Port = "5432"
-const User = "admin"
-const Password = "adminpassword"
-const DbName = "habitsdb"
-
-var DataSourceName = fmt.Sprintf("host=%s port=%s user=%s "+
-	"password=%s dbname=%s sslmode=disable", Host, Port, User, Password, DbName)
 
 func main() {
-	db, err := sql.Open(PostgresDriver, DataSourceName)
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		log.Fatalf("load .env: %v", err)
+	}
+
+	for _, key := range []string{"DB_USER", "DB_PASSWORD", "DB_NAME", "DB_PORT"} {
+		if os.Getenv(key) == "" {
+			log.Fatalf("%s must be set", key)
+		}
+	}
+
+	dsn := &url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD")),
+		Host:   net.JoinHostPort("localhost", os.Getenv("DB_PORT")),
+		Path:   os.Getenv("DB_NAME"),
+	}
+	query := dsn.Query()
+	query.Set("sslmode", "disable")
+	dsn.RawQuery = query.Encode()
+
+	db, err := sql.Open(PostgresDriver, dsn.String())
 
 	if err != nil {
 		panic(err.Error())
-	} else {
-		fmt.Println("Connected!")
 	}
+	defer db.Close()
 
 	heRepo := habit_entry.NewPostgresRepo(db)
 

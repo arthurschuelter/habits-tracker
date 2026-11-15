@@ -34,9 +34,9 @@ type HabitEntry struct {
 }
 
 type EntryRequest struct {
-	HabitID   string `json:"habit_id"`
-	EntryDate string `json:"entry_date"`
-	Duration  int    `json:"duration"`
+	HabitID  string `json:"habit_id"`
+	Date     string `json:"date"`
+	Duration int    `json:"duration"`
 }
 
 func main() {
@@ -173,19 +173,19 @@ func HabitEntryOptionsMenu(habits []Habit) {
 		return
 	}
 
-	var entryDate string
+	var date string
 	fmt.Print("Enter date (YYYY-MM-DD) or press Enter for today: ")
 
-	_, err = fmt.Scanln(&entryDate)
-	if err != nil || entryDate == "" {
-		entryDate = time.Now().Format("2006-01-02")
+	_, err = fmt.Scanln(&date)
+	if err != nil || date == "" {
+		date = time.Now().Format("2006-01-02")
 	}
 
-	fmt.Println("Entry date:", entryDate)
+	fmt.Println("Entry date:", date)
 
-	_, err = time.Parse("2006-01-02", entryDate)
+	_, err = time.Parse("2006-01-02", date)
 	if err != nil {
-		fmt.Println("Invalid date:", entryDate)
+		fmt.Println("Invalid date:", date)
 		return
 	}
 
@@ -197,9 +197,9 @@ func HabitEntryOptionsMenu(habits []Habit) {
 	}
 
 	var requestBody = EntryRequest{
-		HabitID:   habits[habitChoice-1].ID,
-		EntryDate: entryDate,
-		Duration:  duration,
+		HabitID:  habits[habitChoice-1].ID,
+		Date:     date,
+		Duration: duration,
 	}
 
 	PostHabitEntry(requestBody)

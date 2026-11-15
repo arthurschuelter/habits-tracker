@@ -14,6 +14,9 @@ const (
 
 func (m Model) navigateTo(next screen) (Model, tea.Cmd) {
 	m.screen = next
+	if next == screenCreateNewHabit {
+		m.form = habitForm{}
+	}
 	if next == screenListHabits {
 		return m.refreshHabits()
 	}

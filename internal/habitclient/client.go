@@ -1,6 +1,7 @@
 package habitclient
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,31 @@ import (
 type Client struct {
 	baseURL    string
 	httpClient *http.Client
+}
+
+// CreateHabit saves a habit for the API's current user.
+func (c *Client) CreateHabit(ctx context.Context, name, description string) error {
+	body, err := json.Marshal(struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}{Name: name, Description: description})
+	if err != nil {
+		return fmt.Errorf("encode habit: %w", err)
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/habits", bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create habit: %w", err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("create habit: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusCreated && response.StatusCode != http.StatusOK {
+		return fmt.Errorf("create habit: %s", response.Status)
+	}
+	return nil
 }
 
 // New creates a client using the supplied base URL and HTTP client.

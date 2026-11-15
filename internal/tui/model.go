@@ -5,28 +5,28 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/arthurschuelter/habits-tracker/internal/habitclient"
-	"github.com/charmbracelet/bubbles/textinput"
 )
 
-// HabitLister is the API access needed by the TUI.
-type HabitLister interface {
+// HabitClient is the API access needed by the TUI.
+type HabitClient interface {
 	ListHabits(context.Context) ([]habitclient.Habit, error)
+	CreateHabit(context.Context, string, string) error
 }
 
 // Model holds the application state and coordinates its screens.
 type Model struct {
-	client      HabitLister
+	client      HabitClient
 	menuOptions []string
 	habitsList  []habitclient.Habit
 	loading     bool
 	fetchErr    error
 	screen      screen
-	input       textinput.Model
+	form        habitForm
 	cursor      int
 }
 
 // New creates the TUI's initial model.
-func New(client HabitLister) Model {
+func New(client HabitClient) Model {
 	return Model{
 		client: client,
 		menuOptions: []string{
@@ -43,6 +43,14 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if result, ok := msg.(habitCreatedMsg); ok {
+		m.form.saving = false
+		m.form.err = result.err
+		if result.err == nil {
+			return m.navigateTo(screenListHabits)
+		}
+		return m, nil
+	}
 	if result, ok := msg.(habitsFetchedMsg); ok {
 		m.loading = false
 		m.fetchErr = result.err
@@ -52,7 +60,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	key, isKey := msg.(tea.KeyMsg)
+	if paste, ok := msg.(tea.PasteMsg); ok && m.screen == screenCreateNewHabit && !m.form.saving {
+		if m.form.focus < len(m.form.fields) {
+			m.form.fields[m.form.focus].insert(paste.Content)
+		}
+		return m, nil
+	}
+
+	key, isKey := msg.(tea.KeyPressMsg)
 	if !isKey {
 		return m, nil
 	}
@@ -61,6 +76,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch m.screen {
+	case screenCreateNewHabit:
+		return m.updateCreateHabit(key)
 	case screenListHabits:
 		return m.updateListHabits(key)
 	case screenMain:

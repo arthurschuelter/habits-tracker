@@ -9,6 +9,8 @@ import (
 func (m Model) View() tea.View {
 	title, help, content := mainMenuTitle, mainMenuHelp, ""
 	switch m.screen {
+	case screenCreateNewHabit:
+		title, help, content = createHabitTitle, createHabitHelp, m.createHabitView()
 	case screenListHabits:
 		title, help, content = habitsListTitle, habitsListHelp, m.listHabitsView()
 	case screenMain:
