@@ -14,6 +14,11 @@ func (s *Service) List(ctx context.Context, userID string) ([]Habit, error) {
 	return s.repo.ListByUserID(ctx, userID)
 }
 
-func (s *Service) Create(ctx context.Context, h *Habit) error {
-	return s.repo.Create(ctx, h)
+func (s *Service) Create(ctx context.Context, habit *Habit) error {
+	h, err := Validate(*habit)
+	if err != nil {
+		return err
+	}
+
+	return s.repo.Create(ctx, &h)
 }

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/arthurschuelter/habits-tracker/internal/habit"
 	"github.com/arthurschuelter/habits-tracker/internal/habit_entry"
@@ -19,12 +18,6 @@ type HabitHandler struct {
 	entries *habit_entry.Service
 }
 
-type habitResponse struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-}
-
 func NewHabitHandler(h *habit.Service, he *habit_entry.Service) *HabitHandler {
 	return &HabitHandler{habits: h, entries: he}
 }
@@ -35,8 +28,8 @@ func (h *HabitHandler) Routes(e *echo.Echo) {
 	e.POST("/habit_entries", h.CreateHabitEntries)
 }
 
-func toHabitResponse(hb habit.Habit) habitResponse {
-	return habitResponse{
+func toHabitResponse(hb habit.Habit) habitResponseDTO {
+	return habitResponseDTO{
 		ID:          hb.ID,
 		Name:        hb.Name,
 		Description: hb.Description,
@@ -51,30 +44,19 @@ func (h *HabitHandler) GetHabits(ctx *echo.Context) error {
 		return fmt.Errorf("list habits for user %s: %w", userID, err)
 	}
 
-	out := make([]habitResponse, 0, len(habits))
+	out := make([]habitResponseDTO, 0, len(habits))
 	for _, hb := range habits {
 		out = append(out, toHabitResponse(hb))
 	}
 
-	return ctx.JSON(http.StatusOK, habits)
+	return ctx.JSON(http.StatusOK, out)
 }
 
 func (h *HabitHandler) CreateHabits(ctx *echo.Context) error {
-	var req struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		UserID      string `json:"user_id"`
-	}
+	var req CreateHabitRequestDTO
 
 	if err := ctx.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
-	}
-	req.Name = strings.TrimSpace(req.Name)
-	if req.Name == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "name is required")
-	}
-	if req.UserID == "" {
-		req.UserID = currentUserID
 	}
 
 	hb := habit.Habit{
@@ -91,12 +73,7 @@ func (h *HabitHandler) CreateHabits(ctx *echo.Context) error {
 }
 
 func (h *HabitHandler) CreateHabitEntries(ctx *echo.Context) error {
-	var entryRequest struct {
-		HabitID  string `json:"habit_id"`
-		Date     string `json:"date"`
-		Duration int    `json:"duration"`
-	}
-
+	var entryRequest CreateEntryRequestRequestDTO
 	if err := ctx.Bind(&entryRequest); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
 	}
