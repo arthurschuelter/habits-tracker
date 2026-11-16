@@ -19,6 +19,10 @@ import (
 
 const PostgresDriver = "postgres"
 
+// @title Habits Tracker API
+// @version 2.0
+// @description Create habits, list habits with daily entries and streaks, and record time spent on a habit. Authentication is not implemented; listing uses a fixed development user.
+// @BasePath /api/v2
 func main() {
 	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
 		log.Fatalf("load .env: %v", err)
@@ -58,6 +62,7 @@ func main() {
 	e := echo.New()
 
 	habitHandler.Routes(e)
+	api.RegisterDocumentationRoutes(e)
 
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())

@@ -120,6 +120,18 @@ The older terminal client is available through `make ui`.
 The Go API uses the `/api/v2` prefix. Both terminal clients use these versioned
 routes.
 
+With `make api` running, open [Swagger UI](http://localhost:1323/swagger/index.html)
+to browse schemas, examples, validation rules, and responses, and try requests
+against the running API. The specification is available at
+[`/swagger/doc.json`](http://localhost:1323/swagger/doc.json).
+Swagger UI and its assets are served by the API without a CDN dependency.
+
+Documentation is generated from the annotations in `cmd/api/main.go`, the
+handlers, and HTTP DTOs in `internal/api`. After changing a contract, run
+`make swagger` and commit the regenerated `docs/` files. Generation uses a pinned
+Swaggo CLI version; no separate CLI installation is needed. The generated files
+are included in the binary, so normal builds do not require regeneration.
+
 | Method | Path | Behavior |
 |---|---|---|
 | GET | `/api/v2/` | Return a greeting |
@@ -179,6 +191,7 @@ entries return 409. Unexpected server errors return 500.
 | `make tui` | Run the Bubble Tea client |
 | `make ui` | Run the older terminal client |
 | `make build` | Build all Go commands into `bin/` |
+| `make swagger` | Regenerate the Swagger specification and Go registration code |
 | `make test` | Run `go test ./...` |
 | `make up` | Start development PostgreSQL |
 | `make down` | Stop development PostgreSQL |
@@ -231,8 +244,8 @@ relevant database constraint violations into domain errors.
 - Authentication and user registration are unfinished. Habit listing uses a
   hardcoded development user, while habit creation requires an explicit `user_id`.
 - The TUI creates habits for the same hardcoded development user used by listing.
-- Separate entry listing, habit/entry timestamps, and API
-  documentation remain migration work. Update/delete endpoints are unfinished.
+- Separate entry listing and habit/entry timestamps remain migration work.
+  Update/delete endpoints are unfinished.
 - The legacy Python API uses `/api/...` routes and `entry_date` instead of Go's
   `/api/v2/...` routes and `date`. Its expected schema also differs. It is not a
   drop-in replacement for the Go API. Sending only `entry_date` to Go currently

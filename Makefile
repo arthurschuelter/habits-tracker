@@ -1,4 +1,4 @@
-.PHONY: run build api run-tui test up down migrate
+.PHONY: run build api run-tui test up down migrate swagger
 run:
 	go run ./cmd/api
 	go run ./cmd/ui
@@ -14,6 +14,9 @@ tui:
 
 build:
 	go build -o bin/ ./cmd/...
+
+swagger:
+	go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g main.go -d cmd/api,internal/api -o docs
 
 # go test ./internal/habit_entry/... -v
 test:
