@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"log"
 	"net"
-	"net/http"
 	"net/url"
 	"os"
 
@@ -58,16 +57,10 @@ func main() {
 
 	e := echo.New()
 
-	// habits := e.Group("/habits")
-	// habits.GET("/", habitHandler.GetHabits)
 	habitHandler.Routes(e)
 
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
-
-	e.GET("/", func(c *echo.Context) error {
-		return c.JSON(http.StatusOK, map[string]string{"message": "Hello, World!"})
-	})
 
 	if err := e.Start(":1323"); err != nil {
 		e.Logger.Error("failed to start server", "error", err)

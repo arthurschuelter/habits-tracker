@@ -11,6 +11,8 @@ import (
 	"testing"
 )
 
+const apiPrefix = "/api/v2"
+
 func TestListHabits(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -60,15 +62,15 @@ func TestListHabits(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.Method != http.MethodGet || r.URL.Path != "/api/habits" {
-					t.Errorf("request = %s %s, want GET /api/habits", r.Method, r.URL.Path)
+				if r.Method != http.MethodGet || r.URL.Path != apiPrefix+"/habits" {
+					t.Errorf("request = %s %s, want GET %s/habits", r.Method, r.URL.Path, apiPrefix)
 				}
 				w.WriteHeader(tt.status)
 				_, _ = io.WriteString(w, tt.body)
 			}))
 			defer server.Close()
 
-			client := New(server.URL+"/api///", server.Client())
+			client := New(server.URL+apiPrefix+"///", server.Client())
 			habits, err := client.ListHabits(context.Background())
 			if tt.wantError != "" {
 				if err == nil || !strings.HasPrefix(err.Error(), tt.wantError) {
@@ -92,7 +94,7 @@ func TestListHabitsCanceledContext(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err := New(server.URL, server.Client()).ListHabits(ctx)
+	_, err := New(server.URL+apiPrefix, server.Client()).ListHabits(ctx)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v, want context.Canceled", err)
 	}

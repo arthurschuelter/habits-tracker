@@ -45,6 +45,7 @@ func (c *Client) CreateHabit(ctx context.Context, name, description string) erro
 }
 
 // New creates a client using the supplied base URL and HTTP client.
+// The base URL includes the API prefix, for example http://localhost:1323/api/v2.
 func New(baseURL string, httpClient *http.Client) *Client {
 	return &Client{
 		baseURL:    strings.TrimRight(baseURL, "/"),

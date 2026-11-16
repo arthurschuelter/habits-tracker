@@ -23,9 +23,13 @@ func NewHabitHandler(h *habit.Service, he *habit_entry.Service) *HabitHandler {
 }
 
 func (h *HabitHandler) Routes(e *echo.Echo) {
-	e.GET("/habits", h.GetHabits)
-	e.POST("/habits", h.CreateHabits)
-	e.POST("/habit_entries", h.CreateHabitEntries)
+	v2 := e.Group("/api/v2")
+	v2.GET("/", func(c *echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{"message": "Hello, World!"})
+	})
+	v2.GET("/habits", h.GetHabits)
+	v2.POST("/habits", h.CreateHabits)
+	v2.POST("/habit_entries", h.CreateHabitEntries)
 }
 
 func toHabitResponse(hb habit.Habit) habitResponseDTO {

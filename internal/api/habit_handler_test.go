@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const apiPrefix = "/api/v2"
+
 type createRepository struct {
 	created *habit.Habit
 	habits  []habit.Habit
@@ -68,7 +70,7 @@ func TestGetHabitsIncludesEntries(t *testing.T) {
 			repo := &createRepository{habits: tt.habits}
 			NewHabitHandler(habit.NewService(repo), nil).Routes(e)
 			rec := httptest.NewRecorder()
-			e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/habits", nil))
+			e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, apiPrefix+"/habits", nil))
 
 			require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 			require.JSONEq(t, tt.want, rec.Body.String())
@@ -95,7 +97,7 @@ func TestCreateHabitFromForm(t *testing.T) {
 			e := echo.New()
 			habitsRepo := &createRepository{}
 			NewHabitHandler(habit.NewService(habitsRepo), nil).Routes(e)
-			req := httptest.NewRequest(http.MethodPost, "/habits", strings.NewReader(tt.body))
+			req := httptest.NewRequest(http.MethodPost, apiPrefix+"/habits", strings.NewReader(tt.body))
 			req.Header.Set("Content-Type", "application/json")
 			rec := httptest.NewRecorder()
 			e.ServeHTTP(rec, req)
@@ -126,11 +128,11 @@ func TestCreateHabitFromClient(t *testing.T) {
 	server := httptest.NewServer(e)
 	defer server.Close()
 
-	client := habitclient.New(server.URL, server.Client())
+	client := habitclient.New(server.URL+apiPrefix, server.Client())
 	err := client.CreateHabit(t.Context(), " Read ", "20 minutes")
 	require.NoError(t, err)
 	require.NotNil(t, repo.created)
 	require.Equal(t, "Read", repo.created.Name)
 	require.Equal(t, "20 minutes", repo.created.Description)
-	require.Equal(t, currentUserID, repo.created.UserID, "created habits must belong to the user used by GET /habits")
+	require.Equal(t, currentUserID, repo.created.UserID, "created habits must belong to the habit-listing user")
 }

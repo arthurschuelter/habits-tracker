@@ -62,7 +62,7 @@ func TestCreateHabitEntry(t *testing.T) {
 			repo := &createEntryRepository{err: tt.repoErr}
 			e := echo.New()
 			NewHabitHandler(nil, habit_entry.NewService(repo)).Routes(e)
-			req := httptest.NewRequest(http.MethodPost, "/habit_entries", strings.NewReader(tt.body))
+			req := httptest.NewRequest(http.MethodPost, apiPrefix+"/habit_entries", strings.NewReader(tt.body))
 			req.Header.Set("Content-Type", "application/json")
 			rec := httptest.NewRecorder()
 			e.ServeHTTP(rec, req)

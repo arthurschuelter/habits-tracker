@@ -16,7 +16,7 @@ func TestCreateHabitEntry(t *testing.T) {
 	for _, status := range []int{http.StatusOK, http.StatusCreated, http.StatusNoContent, http.StatusBadRequest, http.StatusInternalServerError} {
 		t.Run(fmt.Sprint(status), func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.Method != http.MethodPost || r.URL.Path != "/api/habit_entries" || r.Header.Get("Content-Type") != "application/json" {
+				if r.Method != http.MethodPost || r.URL.Path != apiPrefix+"/habit_entries" || r.Header.Get("Content-Type") != "application/json" {
 					t.Errorf("unexpected request: %s %s (%s)", r.Method, r.URL.Path, r.Header.Get("Content-Type"))
 				}
 				var body map[string]json.RawMessage
@@ -31,7 +31,7 @@ func TestCreateHabitEntry(t *testing.T) {
 				w.WriteHeader(status)
 			}))
 			defer server.Close()
-			err := New(server.URL+"/api/", server.Client()).CreateHabitEntry(context.Background(), want)
+			err := New(server.URL+apiPrefix+"/", server.Client()).CreateHabitEntry(context.Background(), want)
 			if status >= 400 {
 				if err == nil || !strings.Contains(err.Error(), fmt.Sprint(status)) {
 					t.Fatalf("expected HTTP error for status %d, got %v", status, err)
@@ -50,7 +50,7 @@ func TestCreateHabitEntryCanceledContext(t *testing.T) {
 	defer server.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	err := New(server.URL, server.Client()).CreateHabitEntry(ctx, EntryRequest{})
+	err := New(server.URL+apiPrefix, server.Client()).CreateHabitEntry(ctx, EntryRequest{})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v, want context.Canceled", err)
 	}

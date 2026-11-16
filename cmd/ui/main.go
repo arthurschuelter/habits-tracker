@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const base_url = "http://localhost:1323"
+const base_url = "http://localhost:1323/api/v2"
 
 type Habit struct {
 	ID          string       `json:"id"`
