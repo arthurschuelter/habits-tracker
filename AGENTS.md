@@ -35,7 +35,7 @@ Run these commands from the repository root:
 | `make up` | Start development PostgreSQL using `docker-compose` |
 | `make migrate` | Apply Goose migrations using configuration from `.env` |
 | `make api` | Start the Go API on port 1323 |
-| `make tui` | Start the TUI, which connects to `http://localhost:1323` |
+| `make tui` | Start the TUI, which connects to `http://localhost:1323/api/v2` |
 | `make ui` | Start the older terminal client |
 | `make build` | Build command binaries into `bin/` |
 | `go test ./...` | Run the full Go suite |
@@ -76,8 +76,9 @@ The legacy API has a separate Makefile: run `make dev` from `api/` to invoke
 
 ## Current API contracts
 
-- Routes: `GET /`, `GET /habits`, `POST /habits`, and `POST /habit_entries`.
-  Go routes have no `/api` prefix; the legacy Python routes do.
+- Routes: `GET /api/v2/`, `GET /api/v2/habits`, `POST /api/v2/habits`, and
+  `POST /api/v2/habit_entries`. Go routes use `/api/v2`; the legacy Python
+  routes use `/api`.
 - Habit creation accepts `name`, optional `description`, and required `user_id`.
   Habit listing currently uses a hardcoded user ID; authentication is unfinished.
 - Entry creation accepts `habit_id`, optional `date`, and required `duration`.

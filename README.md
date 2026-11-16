@@ -88,7 +88,7 @@ make api
 The API listens on `http://localhost:1323`. Check connectivity with:
 
 ```sh
-curl http://localhost:1323/
+curl http://localhost:1323/api/v2/
 ```
 
 ### 5. Open the terminal interface
@@ -101,7 +101,7 @@ make tui
 
 Use the arrow keys to navigate the menu and Enter to select a screen. Forms use
 Tab/Shift+Tab to change fields, Ctrl+S to save, and Esc to cancel. Ctrl+C exits.
-The TUI connects to `http://localhost:1323`.
+The TUI connects to `http://localhost:1323/api/v2`.
 
 Choose **Fetch habits** for descriptions, current streaks, entry counts, total
 minutes, and a 30-day activity grid. Squares indicate recorded minutes, with
@@ -113,14 +113,15 @@ The older terminal client is available through `make ui`.
 
 ## API
 
-The Go API uses paths without an `/api` prefix.
+The Go API uses the `/api/v2` prefix. Both terminal clients use these versioned
+routes.
 
 | Method | Path | Behavior |
 |---|---|---|
-| GET | `/` | Return a greeting |
-| GET | `/habits` | List habits for the temporary configured user |
-| POST | `/habits` | Create a habit; return 201 with an empty body |
-| POST | `/habit_entries` | Record a daily entry; return 201 with an empty body |
+| GET | `/api/v2/` | Return a greeting |
+| GET | `/api/v2/habits` | List habits for the temporary configured user |
+| POST | `/api/v2/habits` | Create a habit; return 201 with an empty body |
+| POST | `/api/v2/habit_entries` | Record a daily entry; return 201 with an empty body |
 
 ### Create a habit
 
@@ -128,7 +129,7 @@ The Go API uses paths without an `/api` prefix.
 in PostgreSQL.
 
 ```sh
-curl -i -X POST http://localhost:1323/habits \
+curl -i -X POST http://localhost:1323/api/v2/habits \
   -H 'Content-Type: application/json' \
   -d '{
     "name": "Read",
@@ -140,7 +141,7 @@ curl -i -X POST http://localhost:1323/habits \
 Fetch the habit list to obtain its generated ID:
 
 ```sh
-curl http://localhost:1323/habits
+curl http://localhost:1323/api/v2/habits
 ```
 
 ### Record an entry
@@ -148,7 +149,7 @@ curl http://localhost:1323/habits
 Replace `REPLACE_WITH_HABIT_ID` with an existing habit's UUID:
 
 ```sh
-curl -i -X POST http://localhost:1323/habit_entries \
+curl -i -X POST http://localhost:1323/api/v2/habit_entries \
   -H 'Content-Type: application/json' \
   -d '{
     "habit_id": "REPLACE_WITH_HABIT_ID",
@@ -226,13 +227,12 @@ relevant database constraint violations into domain errors.
 - Authentication and user registration are unfinished. Habit listing uses a
   hardcoded development user, while habit creation requires an explicit `user_id`.
 - The TUI creates habits for the same hardcoded development user used by listing.
-- Habit response mapping is incomplete: `entries` is currently a single object
-  rather than an array, and stored entries are not mapped into the response yet.
-- Streak calculation, separate entry listing, habit/entry timestamps, and API
+- Separate entry listing, habit/entry timestamps, and API
   documentation remain migration work. Update/delete endpoints are unfinished.
 - The legacy Python API uses `/api/...` routes and `entry_date` instead of Go's
-  `date`. Its expected schema also differs. It is not a drop-in replacement for
-  the Go API. Sending only `entry_date` to Go currently defaults the date to today.
+  `/api/v2/...` routes and `date`. Its expected schema also differs. It is not a
+  drop-in replacement for the Go API. Sending only `entry_date` to Go currently
+  defaults the date to today.
 
 See [`todo.md`](todo.md) for the migration backlog and [`AGENTS.md`](AGENTS.md)
 for architecture and contributor guidance.
