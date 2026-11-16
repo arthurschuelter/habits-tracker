@@ -89,6 +89,8 @@ The legacy API has a separate Makefile: run `make dev` from `api/` to invoke
   Successful creation endpoints return 201 with an empty body.
 - Legacy entries can have NULL duration; repository reads expose this as zero
   recorded minutes. That does not make zero valid for newly created entries.
+- Current streaks count consecutive recorded dates ending today or yesterday.
+  A streak ending yesterday remains active through today in the server's local time.
 
 ## Testing and change workflow
 
@@ -117,7 +119,7 @@ the table can lag behind implementation. Important current integration gaps:
   currently only sends name and description.
 - Python's `entry_date` payload differs from Go's `date`; an old field can be
   ignored and cause Go to default to today. Treat compatibility changes explicitly.
-- Streak calculation, standalone entry listing, habit/entry timestamps, and API
+- Standalone entry listing, habit/entry timestamps, and API
   documentation are migration work. Update/delete endpoints and authentication
   are also unfinished; Python interfaces and commented code do not establish
   working endpoint support.

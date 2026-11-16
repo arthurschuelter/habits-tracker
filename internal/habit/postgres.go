@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/arthurschuelter/habits-tracker/internal/habit_entry"
 )
@@ -103,20 +102,4 @@ func (r *PostgresRepo) Create(ctx context.Context, h *Habit) error {
 	}
 
 	return nil
-}
-
-func CalculateStreak(entries []habit_entry.HabitEntry) int {
-	streak := 0
-	date := time.Now()
-
-	for _, e := range entries {
-		if e.Date == date.Format("2006-01-02") {
-			streak = streak + 1
-			date = date.AddDate(0, 0, -1)
-		} else {
-			return streak
-		}
-	}
-
-	return streak
 }

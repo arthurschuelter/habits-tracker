@@ -109,6 +109,10 @@ today marked in brackets. Use Up/Down or J/K to scroll, Page Up/Page Down to
 page through habits, Left/Right to browse older date windows, T to return to
 today, and R to refresh. Esc or B returns to the menu.
 
+Current streaks count consecutive recorded days ending today or yesterday. A
+streak ending yesterday remains active until the end of today, using the server's
+local date.
+
 The older terminal client is available through `make ui`.
 
 ## API

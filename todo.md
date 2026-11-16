@@ -14,6 +14,7 @@
 - [X] API to GO
 - [x] Habit response format: mapped DTOs, snake_case fields, entry arrays, and current streaks.
 - [x] Route compatibility: Go API and terminal clients use `/api/v2/...`.
+- [x] Streak behavior: preserve streaks ending yesterday until today is missed.
 
 ### Python API parity
 

@@ -116,6 +116,13 @@ func TestRepositoryListHabitsWithStreak(t *testing.T) {
 		})
 		require.NoError(t, err)
 	}
+	// Study has no entry today; its streak through yesterday is still active.
+	for _, offset := range []int{-4, -2, -1} {
+		_, err := entriesRepo.Create(ctx, &habit_entry.HabitEntry{
+			HabitID: studyID, Date: today.AddDate(0, 0, offset).Format(time.DateOnly), Duration: 15,
+		})
+		require.NoError(t, err)
+	}
 	habits, err = habitsRepo.ListByUserID(ctx, userID)
 	require.NoError(t, err)
 	require.Len(t, habits, 2)
@@ -126,6 +133,10 @@ func TestRepositoryListHabitsWithStreak(t *testing.T) {
 			for i, offset := range []int{0, -1, -3} {
 				require.Equal(t, today.AddDate(0, 0, offset).Format(time.DateOnly), h.Entries[i].Date)
 			}
+		} else {
+			require.Equal(t, studyID, h.ID)
+			require.Equal(t, 2, h.Streak, "a streak through yesterday must remain active without an entry today")
+			require.Len(t, h.Entries, 3)
 		}
 	}
 }
