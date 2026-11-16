@@ -29,10 +29,22 @@ func (h *HabitHandler) Routes(e *echo.Echo) {
 }
 
 func toHabitResponse(hb habit.Habit) habitResponseDTO {
+	entries := make([]habitEntryResponseDTO, 0, len(hb.Entries))
+	for _, entry := range hb.Entries {
+		entries = append(entries, habitEntryResponseDTO{
+			ID:       entry.ID,
+			HabitID:  entry.HabitID,
+			Date:     entry.Date,
+			Duration: entry.Duration,
+		})
+	}
+
 	return habitResponseDTO{
 		ID:          hb.ID,
 		Name:        hb.Name,
 		Description: hb.Description,
+		Entries:     entries,
+		Streak:      hb.Streak,
 	}
 }
 
@@ -54,7 +66,6 @@ func (h *HabitHandler) GetHabits(ctx *echo.Context) error {
 
 func (h *HabitHandler) CreateHabits(ctx *echo.Context) error {
 	var req CreateHabitRequestDTO
-
 	if err := ctx.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
 	}

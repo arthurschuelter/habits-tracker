@@ -131,8 +131,8 @@ func TestRefreshFailureAndRetry(t *testing.T) {
 	}
 }
 
-func TestQuitFromEitherScreen(t *testing.T) {
-	for _, screen := range []screen{screenMain, screenListHabits} {
+func TestQuitFromBrowsingScreens(t *testing.T) {
+	for _, screen := range []screen{screenMain, screenListHabits, screenFetchHabits} {
 		for _, key := range []tea.KeyPressMsg{{Code: 'q'}, {Code: 'c', Mod: tea.ModCtrl}} {
 			m := New(nil)
 			m.screen = screen

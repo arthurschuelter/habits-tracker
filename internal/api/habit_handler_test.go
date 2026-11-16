@@ -8,11 +8,15 @@ import (
 	"testing"
 
 	"github.com/arthurschuelter/habits-tracker/internal/habit"
+	"github.com/arthurschuelter/habits-tracker/internal/habit_entry"
+	"github.com/arthurschuelter/habits-tracker/internal/habitclient"
 	"github.com/labstack/echo/v5"
+	"github.com/stretchr/testify/require"
 )
 
 type createRepository struct {
 	created *habit.Habit
+	habits  []habit.Habit
 }
 
 func (r *createRepository) GetByID(context.Context, string) (*habit.Habit, error) {
@@ -20,12 +24,56 @@ func (r *createRepository) GetByID(context.Context, string) (*habit.Habit, error
 }
 
 func (r *createRepository) ListByUserID(context.Context, string) ([]habit.Habit, error) {
-	return nil, nil
+	return r.habits, nil
 }
 
 func (r *createRepository) Create(_ context.Context, h *habit.Habit) error {
 	r.created = h
 	return nil
+}
+
+func TestGetHabitsIncludesEntries(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		habits []habit.Habit
+		want   string
+	}{
+		{
+			name: "populated and empty entries",
+			habits: []habit.Habit{
+				{
+					ID: "read", Name: "Read", Description: "Read daily", UserID: currentUserID,
+					Entries: []habit_entry.HabitEntry{
+						{ID: "entry-1", HabitID: "read", Date: "2026-11-15", Duration: 20},
+						{ID: "entry-2", HabitID: "read", Date: "2026-11-14", Duration: 30},
+					},
+					Streak: 2,
+				},
+				{ID: "study", Name: "Study", Description: "Programming"},
+				{ID: "walk", Name: "Walk", Entries: []habit_entry.HabitEntry{}},
+			},
+			want: `[
+				{"id":"read","name":"Read","description":"Read daily","entries":[
+					{"id":"entry-1","habit_id":"read","date":"2026-11-15","duration":20},
+					{"id":"entry-2","habit_id":"read","date":"2026-11-14","duration":30}
+				],"streak":2},
+				{"id":"study","name":"Study","description":"Programming","entries":[],"streak":0},
+				{"id":"walk","name":"Walk","description":"","entries":[],"streak":0}
+			]`,
+		},
+		{name: "no habits", want: `[]`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			e := echo.New()
+			repo := &createRepository{habits: tt.habits}
+			NewHabitHandler(habit.NewService(repo), nil).Routes(e)
+			rec := httptest.NewRecorder()
+			e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/habits", nil))
+
+			require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+			require.JSONEq(t, tt.want, rec.Body.String())
+		})
+	}
 }
 
 func TestCreateHabitFromForm(t *testing.T) {
@@ -69,4 +117,20 @@ func TestCreateHabitFromForm(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCreateHabitFromClient(t *testing.T) {
+	e := echo.New()
+	repo := &createRepository{}
+	NewHabitHandler(habit.NewService(repo), nil).Routes(e)
+	server := httptest.NewServer(e)
+	defer server.Close()
+
+	client := habitclient.New(server.URL, server.Client())
+	err := client.CreateHabit(t.Context(), " Read ", "20 minutes")
+	require.NoError(t, err)
+	require.NotNil(t, repo.created)
+	require.Equal(t, "Read", repo.created.Name)
+	require.Equal(t, "20 minutes", repo.created.Description)
+	require.Equal(t, currentUserID, repo.created.UserID, "created habits must belong to the user used by GET /habits")
 }

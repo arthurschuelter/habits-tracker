@@ -7,6 +7,9 @@ import (
 )
 
 func (m Model) View() tea.View {
+	if m.screen == screenFetchHabits {
+		return m.fetchHabitsView()
+	}
 	title, help, content := mainMenuTitle, mainMenuHelp, ""
 	switch m.screen {
 	case screenTrackHabit:

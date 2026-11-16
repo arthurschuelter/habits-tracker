@@ -22,7 +22,7 @@ func NewPostgresRepo(db *sql.DB) *PostgresRepo {
 func (r *PostgresRepo) ListByHabitID(ctx context.Context, habitID string) ([]HabitEntry, error) {
 	// Legacy entries with NULL duration have no recorded minutes.
 	const q = `
-		SELECT id, habit_id, date, COALESCE(duration, 0)
+		SELECT id, habit_id, to_char(date, 'YYYY-MM-DD'), COALESCE(duration, 0)
 		FROM habit_entries 
 		WHERE habit_id = $1`
 
@@ -50,10 +50,10 @@ func (r *PostgresRepo) ListByHabitID(ctx context.Context, habitID string) ([]Hab
 func (r *PostgresRepo) ListByHabitIDs(ctx context.Context, habitIDs []string) (map[string][]HabitEntry, error) {
 	// Legacy entries with NULL duration have no recorded minutes.
 	const q = `
-		SELECT id, habit_id, date, COALESCE(duration, 0)
+		SELECT id, habit_id, to_char(date, 'YYYY-MM-DD'), COALESCE(duration, 0)
 		FROM habit_entries 
 		WHERE habit_id = ANY($1)
-		ORDER BY date
+		ORDER BY date DESC
 	`
 	rows, err := r.db.QueryContext(ctx, q, pq.Array(habitIDs))
 	if err != nil {

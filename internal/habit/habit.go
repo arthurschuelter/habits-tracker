@@ -15,6 +15,7 @@ type Habit struct {
 	Description string
 	UserID      string
 	Entries     []habit_entry.HabitEntry
+	Streak      int
 }
 
 type Repository interface {

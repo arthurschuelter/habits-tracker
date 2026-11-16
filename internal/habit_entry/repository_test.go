@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/arthurschuelter/habits-tracker/internal/habit"
 	"github.com/arthurschuelter/habits-tracker/internal/habit_entry"
 	"github.com/arthurschuelter/habits-tracker/internal/tests"
 	"github.com/lib/pq"
@@ -54,19 +55,79 @@ func TestRepositoryCreate(t *testing.T) {
 	require.NoError(t, err)
 	require.NotZero(t, he)
 	require.Equal(t, habitID, he.HabitID)
+	require.Equal(t, "2006-01-02", he.Date)
 	require.Equal(t, 15, he.Duration)
 
 	entries, err := repo.ListByHabitID(ctx, habitID)
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
 	require.Equal(t, he.ID, entries[0].ID)
+	require.Equal(t, he.Date, entries[0].Date)
 	require.Equal(t, he.Duration, entries[0].Duration)
 
 	entriesByHabit, err := repo.ListByHabitIDs(ctx, []string{habitID})
 	require.NoError(t, err)
 	require.Len(t, entriesByHabit[habitID], 1)
 	require.Equal(t, he.ID, entriesByHabit[habitID][0].ID)
+	require.Equal(t, he.Date, entriesByHabit[habitID][0].Date)
 	require.Equal(t, he.Duration, entriesByHabit[habitID][0].Duration)
+}
+
+func TestRepositoryListHabitsWithStreak(t *testing.T) {
+	tests.CleanTables(t, testDB, "habit_entries", "habits", "users")
+	ctx := ctx(t)
+	const userID = "33333333-3333-3333-3333-333333333333"
+	const readID = "11111111-1111-1111-1111-111111111111"
+	const studyID = "22222222-2222-2222-2222-222222222222"
+	_, err := testDB.ExecContext(ctx,
+		`INSERT INTO users (id, username, email) VALUES ($1, 'reader', 'reader@example.com')`, userID)
+	require.NoError(t, err)
+	_, err = testDB.ExecContext(ctx, `INSERT INTO habits (id, name, description, user_id)
+		VALUES ($1, 'Read', '', $3), ($2, 'Study', '', $3)`, readID, studyID, userID)
+	require.NoError(t, err)
+
+	entriesRepo := habit_entry.NewPostgresRepo(testDB)
+	habitsRepo := habit.NewPostgresRepo(testDB, entriesRepo)
+	today := time.Now()
+	_, err = entriesRepo.Create(ctx, &habit_entry.HabitEntry{
+		HabitID: readID, Date: today.Format(time.DateOnly), Duration: 15,
+	})
+	require.NoError(t, err)
+
+	habits, err := habitsRepo.ListByUserID(ctx, userID)
+	require.NoError(t, err)
+	require.Len(t, habits, 2)
+	for _, h := range habits {
+		if h.ID == readID {
+			require.Equal(t, 1, h.Streak, "today's persisted entry must count toward the streak")
+			require.Len(t, h.Entries, 1)
+			require.Equal(t, today.Format(time.DateOnly), h.Entries[0].Date)
+		} else {
+			require.Equal(t, studyID, h.ID)
+			require.Empty(t, h.Entries)
+			require.Zero(t, h.Streak)
+		}
+	}
+
+	// Insert older entries out of order; the missing day ends the streak.
+	for _, offset := range []int{-3, -1} {
+		_, err := entriesRepo.Create(ctx, &habit_entry.HabitEntry{
+			HabitID: readID, Date: today.AddDate(0, 0, offset).Format(time.DateOnly), Duration: 15,
+		})
+		require.NoError(t, err)
+	}
+	habits, err = habitsRepo.ListByUserID(ctx, userID)
+	require.NoError(t, err)
+	require.Len(t, habits, 2)
+	for _, h := range habits {
+		if h.ID == readID {
+			require.Equal(t, 2, h.Streak)
+			require.Len(t, h.Entries, 3)
+			for i, offset := range []int{0, -1, -3} {
+				require.Equal(t, today.AddDate(0, 0, offset).Format(time.DateOnly), h.Entries[i].Date)
+			}
+		}
+	}
 }
 
 func TestRepositoryListLegacyEntryWithoutDuration(t *testing.T) {

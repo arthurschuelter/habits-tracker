@@ -9,6 +9,9 @@ import (
 	"strings"
 )
 
+// Matches the API's current user for habit listing until authentication is added.
+const developmentUserID = "0a483f13-1ffc-4f85-aa71-98a9b96fedfe"
+
 // Client provides HTTP access to the habits API.
 type Client struct {
 	baseURL    string
@@ -20,7 +23,8 @@ func (c *Client) CreateHabit(ctx context.Context, name, description string) erro
 	body, err := json.Marshal(struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
-	}{Name: name, Description: description})
+		UserID      string `json:"user_id"`
+	}{Name: name, Description: description, UserID: developmentUserID})
 	if err != nil {
 		return fmt.Errorf("encode habit: %w", err)
 	}

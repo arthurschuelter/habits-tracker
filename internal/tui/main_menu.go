@@ -24,6 +24,9 @@ func (m Model) updateMain(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.cursor++
 		}
 	case "enter", "space":
+		if m.cursor == 0 {
+			return m.navigateTo(screenFetchHabits)
+		}
 		if m.cursor == 1 {
 			return m.navigateTo(screenListHabits)
 		}

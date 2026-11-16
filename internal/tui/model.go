@@ -22,6 +22,7 @@ type Model struct {
 	screen      screen
 	form        habitForm
 	entryForm   habitEntryForm
+	dashboard   habitsDashboard
 	notice      string
 	cursor      int
 	width       int
@@ -30,9 +31,10 @@ type Model struct {
 
 func New(client HabitClient) Model {
 	return Model{
-		client: client,
-		width:  64,
-		height: 24,
+		client:    client,
+		dashboard: newHabitsDashboard(),
+		width:     64,
+		height:    24,
 		menuOptions: []string{
 			"Fetch habits",
 			"List Habits",
@@ -77,6 +79,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			}
 		}
+		if m.screen == screenFetchHabits {
+			m.syncHabitsDashboard()
+		}
 		return m, nil
 	}
 
@@ -94,6 +99,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if m.screen == screenTrackHabit {
 		return m.updateCreateHabitEntry(msg)
+	}
+	if m.screen == screenFetchHabits {
+		return m.updateFetchHabits(msg)
 	}
 	if !isKey {
 		return m, nil

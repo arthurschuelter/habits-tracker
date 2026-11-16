@@ -20,7 +20,8 @@ func TestCreateHabit(t *testing.T) {
 				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 					t.Errorf("decode request: %v", err)
 				}
-				if body["name"] != "Read" || body["description"] != "20 minutes" || len(body) != 2 {
+				if body["name"] != "Read" || body["description"] != "20 minutes" ||
+					body["user_id"] != developmentUserID || len(body) != 3 {
 					t.Errorf("unexpected request body: %v", body)
 				}
 				w.WriteHeader(status)

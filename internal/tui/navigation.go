@@ -23,6 +23,11 @@ func (m Model) navigateTo(next screen) (Model, tea.Cmd) {
 		m.form.description.Blur()
 	}
 	m.screen = next
+	if next == screenFetchHabits {
+		m.dashboard = newHabitsDashboard()
+		m.syncHabitsDashboard()
+		return m.refreshHabits()
+	}
 	if next == screenTrackHabit {
 		m.entryForm = newHabitEntryForm(m.width, m.height, m.habitsList)
 		return m.refreshHabits()

@@ -29,6 +29,16 @@ func TestListHabits(t *testing.T) {
 			},
 		},
 		{
+			name:   "entries and computed streak",
+			status: http.StatusOK,
+			body:   `[{"id":"habit-1","name":"Read","description":"Read daily","streak":1,"entries":[{"id":"entry-1","habit_id":"habit-1","date":"2026-11-15","duration":20}]},{"id":"habit-2","name":"Study","description":"","streak":0,"entries":[]}]`,
+			want: []Habit{
+				{ID: "habit-1", Name: "Read", Description: "Read daily", Streak: 1,
+					Entries: []HabitEntry{{ID: "entry-1", HabitID: "habit-1", Date: "2026-11-15", Duration: 20}}},
+				{ID: "habit-2", Name: "Study", Entries: []HabitEntry{}},
+			},
+		},
+		{
 			name:   "empty list",
 			status: http.StatusOK,
 			body:   `[]`,

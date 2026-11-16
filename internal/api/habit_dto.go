@@ -1,10 +1,11 @@
 package api
 
 type habitResponseDTO struct {
-	ID          string                `json:"id"`
-	Name        string                `json:"name"`
-	Description string                `json:"description"`
-	Entries     habitEntryResponseDTO `json:"entries"`
+	ID          string                  `json:"id"`
+	Name        string                  `json:"name"`
+	Description string                  `json:"description"`
+	Entries     []habitEntryResponseDTO `json:"entries"`
+	Streak      int                     `json:"streak"`
 }
 
 type habitEntryResponseDTO struct {
