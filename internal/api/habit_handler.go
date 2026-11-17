@@ -55,6 +55,7 @@ func toHabitResponse(hb habit.Habit) habitResponseDTO {
 		ID:          hb.ID,
 		Name:        hb.Name,
 		Description: hb.Description,
+		CreatedAt:   hb.CreatedAt,
 		Entries:     entries,
 		Streak:      hb.Streak,
 	}

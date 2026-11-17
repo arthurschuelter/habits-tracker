@@ -251,6 +251,13 @@ const docTemplate = `{
         "api.habitResponseDTO": {
             "type": "object",
             "properties": {
+                "created_at": {
+                    "description": "Creation timestamp in RFC3339 format; null for legacy habits with an unknown creation time.",
+                    "type": "string",
+                    "format": "date-time",
+                    "x-nullable": true,
+                    "example": "2026-11-17T12:34:56Z"
+                },
                 "description": {
                     "type": "string",
                     "example": "Read for 20 minutes"

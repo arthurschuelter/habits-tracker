@@ -56,30 +56,12 @@ Once PostgreSQL is accepting connections, apply the schema:
 make migrate
 ```
 
+Migrations seed the fixed development user
+`0a483f13-1ffc-4f85-aa71-98a9b96fedfe` used by the API and terminal clients.
+If that user already exists, its details are preserved.
 Database data persists in the Compose `postgres-data` volume.
 
-### 3. Create the development user
-
-Habit creation requires an existing user. There is no user-registration endpoint
-or automatic seed yet. With the example database settings above, create a user
-matching the API's temporary habit-listing user:
-
-```sh
-docker-compose exec -T postgres psql -U habits -d habitsdb <<'SQL'
-INSERT INTO users (id, username, email)
-VALUES (
-    '0a483f13-1ffc-4f85-aa71-98a9b96fedfe',
-    'demo',
-    'demo@example.com'
-)
-ON CONFLICT (id) DO NOTHING;
-SQL
-```
-
-Adjust the command's database user/name if you chose different `.env` values.
-Use `docker compose exec` if that is the Compose command available locally.
-
-### 4. Start the API
+### 3. Start the API
 
 ```sh
 make api
@@ -91,7 +73,7 @@ The API listens on `http://localhost:1323`. Check connectivity with:
 curl http://localhost:1323/api/v2/
 ```
 
-### 5. Open the terminal interface
+### 4. Open the terminal interface
 
 In a separate terminal:
 

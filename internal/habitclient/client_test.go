@@ -9,11 +9,13 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 const apiPrefix = "/api/v2"
 
 func TestListHabits(t *testing.T) {
+	createdAt := time.Date(2026, time.November, 17, 12, 34, 56, 123456000, time.UTC)
 	tests := []struct {
 		name      string
 		status    int
@@ -38,6 +40,15 @@ func TestListHabits(t *testing.T) {
 				{ID: "habit-1", Name: "Read", Description: "Read daily", Streak: 1,
 					Entries: []HabitEntry{{ID: "entry-1", HabitID: "habit-1", Date: "2026-11-15", Duration: 20}}},
 				{ID: "habit-2", Name: "Study", Entries: []HabitEntry{}},
+			},
+		},
+		{
+			name:   "creation timestamps and unknown legacy times",
+			status: http.StatusOK,
+			body:   `[{"id":"habit-1","created_at":"2026-11-17T12:34:56.123456Z"},{"id":"habit-2","created_at":null}]`,
+			want: []Habit{
+				{ID: "habit-1", CreatedAt: &createdAt},
+				{ID: "habit-2"},
 			},
 		},
 		{

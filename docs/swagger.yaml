@@ -66,6 +66,13 @@ definitions:
     type: object
   api.habitResponseDTO:
     properties:
+      created_at:
+        description: Creation timestamp in RFC3339 format; null for legacy habits
+          with an unknown creation time.
+        example: "2026-11-17T12:34:56Z"
+        format: date-time
+        type: string
+        x-nullable: true
       description:
         example: Read for 20 minutes
         type: string

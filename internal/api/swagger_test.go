@@ -42,6 +42,8 @@ func TestSwaggerSpecification(t *testing.T) {
 
 	type schema struct {
 		Type       string            `json:"type"`
+		Format     string            `json:"format"`
+		Nullable   bool              `json:"x-nullable"`
 		Required   []string          `json:"required"`
 		Properties map[string]schema `json:"properties"`
 		Minimum    *int              `json:"minimum"`
@@ -90,4 +92,8 @@ func TestSwaggerSpecification(t *testing.T) {
 	require.Equal(t, 1, *duration.Minimum)
 	require.Equal(t, habit_entry.MaxDurationMinutes, *duration.Maximum)
 	require.Equal(t, "array", doc.Definitions["api.habitResponseDTO"].Properties["entries"].Type)
+	createdAt := doc.Definitions["api.habitResponseDTO"].Properties["created_at"]
+	require.Equal(t, "string", createdAt.Type)
+	require.Equal(t, "date-time", createdAt.Format)
+	require.True(t, createdAt.Nullable)
 }

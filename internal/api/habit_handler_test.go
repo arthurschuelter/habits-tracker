@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/arthurschuelter/habits-tracker/internal/habit"
 	"github.com/arthurschuelter/habits-tracker/internal/habit_entry"
@@ -35,6 +36,7 @@ func (r *createRepository) Create(_ context.Context, h *habit.Habit) error {
 }
 
 func TestGetHabitsIncludesEntries(t *testing.T) {
+	createdAt := time.Date(2026, time.November, 17, 12, 34, 56, 123456000, time.UTC)
 	for _, tt := range []struct {
 		name   string
 		habits []habit.Habit
@@ -45,6 +47,7 @@ func TestGetHabitsIncludesEntries(t *testing.T) {
 			habits: []habit.Habit{
 				{
 					ID: "read", Name: "Read", Description: "Read daily", UserID: currentUserID,
+					CreatedAt: &createdAt,
 					Entries: []habit_entry.HabitEntry{
 						{ID: "entry-1", HabitID: "read", Date: "2026-11-15", Duration: 20},
 						{ID: "entry-2", HabitID: "read", Date: "2026-11-14", Duration: 30},
@@ -55,12 +58,12 @@ func TestGetHabitsIncludesEntries(t *testing.T) {
 				{ID: "walk", Name: "Walk", Entries: []habit_entry.HabitEntry{}},
 			},
 			want: `[
-				{"id":"read","name":"Read","description":"Read daily","entries":[
+				{"id":"read","name":"Read","description":"Read daily","created_at":"2026-11-17T12:34:56.123456Z","entries":[
 					{"id":"entry-1","habit_id":"read","date":"2026-11-15","duration":20},
 					{"id":"entry-2","habit_id":"read","date":"2026-11-14","duration":30}
 				],"streak":2},
-				{"id":"study","name":"Study","description":"Programming","entries":[],"streak":0},
-				{"id":"walk","name":"Walk","description":"","entries":[],"streak":0}
+				{"id":"study","name":"Study","description":"Programming","created_at":null,"entries":[],"streak":0},
+				{"id":"walk","name":"Walk","description":"","created_at":null,"entries":[],"streak":0}
 			]`,
 		},
 		{name: "no habits", want: `[]`},

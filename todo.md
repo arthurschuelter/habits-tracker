@@ -11,6 +11,8 @@
 ## API
 - [ ] POST request
 - [ ] Add Tests
+- [ ] Highest streak
+- [ ] Hidden column
 - [X] API to GO
 - [x] Habit response format: mapped DTOs, snake_case fields, entry arrays, and current streaks.
 - [x] Route compatibility: Go API and terminal clients use `/api/v2/...`.
@@ -23,7 +25,7 @@ Missing features and compatibility differences between the old Python API and th
 
 | Area | Old Python API | Current Go API | Follow-up |
 |---|---|---|---|
-| Habit/entry timestamps | Models and queries include `created_at` and `updated_at` | Missing from models and migrations | Decide timestamp requirements and add persistence and response fields. |
+| Habit/entry timestamps | Models and queries include `created_at` and `updated_at` | Habits persist and return `created_at` (null for unknown legacy times); `updated_at` is not maintained or exposed; entry timestamps are missing | Decide requirements for update and entry timestamps. |
 | Entry request format | Uses `entry_date` | Uses `date`, requiring `YYYY-MM-DD` | Support or explicitly reject the old field; currently it is ignored and the date defaults to today. |
 | POST responses | Returns the submitted object | Returns HTTP 201 with an empty body | Decide whether to return created-resource representations or keep empty responses. |
 | User selection and response | Hardcoded user ID; habit listing populates `user_id` | Different hardcoded user ID; listing does not populate `UserID` | Align user selection and populate user IDs in list results. |

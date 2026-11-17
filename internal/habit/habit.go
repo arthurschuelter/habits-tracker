@@ -3,6 +3,7 @@ package habit
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/arthurschuelter/habits-tracker/internal/habit_entry"
 )
@@ -14,6 +15,7 @@ type Habit struct {
 	Name        string
 	Description string
 	UserID      string
+	CreatedAt   *time.Time
 	Entries     []habit_entry.HabitEntry
 	Streak      int
 }

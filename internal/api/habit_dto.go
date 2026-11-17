@@ -1,11 +1,15 @@
 package api
 
+import "time"
+
 type habitResponseDTO struct {
-	ID          string                  `json:"id" format:"uuid" example:"11111111-1111-1111-1111-111111111111"`
-	Name        string                  `json:"name" example:"Read"`
-	Description string                  `json:"description" example:"Read for 20 minutes"`
-	Entries     []habitEntryResponseDTO `json:"entries"`
-	Streak      int                     `json:"streak" minimum:"0" example:"2"`
+	ID          string `json:"id" format:"uuid" example:"11111111-1111-1111-1111-111111111111"`
+	Name        string `json:"name" example:"Read"`
+	Description string `json:"description" example:"Read for 20 minutes"`
+	// Creation timestamp in RFC3339 format; null for legacy habits with an unknown creation time.
+	CreatedAt *time.Time              `json:"created_at" format:"date-time" example:"2026-11-17T12:34:56Z" extensions:"x-nullable"`
+	Entries   []habitEntryResponseDTO `json:"entries"`
+	Streak    int                     `json:"streak" minimum:"0" example:"2"`
 }
 
 type habitEntryResponseDTO struct {
