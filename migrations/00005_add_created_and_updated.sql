@@ -1,0 +1,9 @@
+-- +goose Up
+ALTER TABLE habits ADD COLUMN created_at TIMESTAMPTZ;
+ALTER TABLE habits ADD COLUMN updated_at TIMESTAMPTZ;
+ALTER TABLE habits ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;
+
+-- +goose Down
+ALTER TABLE habits ALTER COLUMN created_at DROP DEFAULT;
+ALTER TABLE habits DROP COLUMN created_at;
+ALTER TABLE habits DROP COLUMN updated_at;
