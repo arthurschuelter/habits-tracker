@@ -17,7 +17,7 @@ import (
 func TestFetchHabitsDashboard(t *testing.T) {
 	today := time.Now()
 	want := []habitclient.Habit{
-		{ID: "read", Name: "Read", Description: "Read for 20 minutes every day", Streak: 1,
+		{ID: "read", Name: "Read", Description: "Read for 20 minutes every day", Streak: 1, HighestStreak: 3,
 			Entries: []habitclient.HabitEntry{{ID: "entry", HabitID: "read", Date: today.Format(time.DateOnly), Duration: 20}}},
 		{ID: "study", Name: "Study"},
 	}
@@ -39,7 +39,7 @@ func TestFetchHabitsDashboard(t *testing.T) {
 	require.False(t, m.loading)
 	view := ansi.Strip(m.View().Content)
 	for _, text := range []string{"Habit activity", "2 habits", "Read for 20 minutes every day", "Current streak: 1 day",
-		"1 entry · 20 min total", "[■]", "Study", "Current streak: 0 days", "No description yet.", "r: refresh"} {
+		"1 entry · 20 min total", "[■]", "Study", "Current streak: 0 days", "Highest streak: 0 days", "Highest streak: 3 days", "No description yet.", "r: refresh"} {
 		require.Contains(t, view, text)
 	}
 	require.NotContains(t, view, "Fetching habits...")

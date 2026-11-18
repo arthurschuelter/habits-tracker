@@ -49,6 +49,10 @@ func renderHabitCards(habits []habitclient.Habit, end, today time.Time, width in
 		if habit.Streak == 1 {
 			dayLabel = "day"
 		}
+		highestDayLabel := "days"
+		if habit.HighestStreak == 1 {
+			highestDayLabel = "day"
+		}
 		entryLabel := "entries"
 		if len(habit.Entries) == 1 {
 			entryLabel = "entry"
@@ -56,6 +60,7 @@ func renderHabitCards(habits []habitclient.Habit, end, today time.Time, width in
 		content := text.Render(titleStyle.Render(habit.Name)) + "\n" +
 			text.Render(description) + "\n" +
 			text.Render(streakStyle.Render(fmt.Sprintf("Current streak: %d %s", habit.Streak, dayLabel))) + "\n" +
+			text.Render(streakStyle.Render(fmt.Sprintf("Highest streak: %d %s", habit.HighestStreak, highestDayLabel))) + "\n" +
 			text.Render(fmt.Sprintf("%d %s · %d min total", len(habit.Entries), entryLabel, minutes)) + "\n\n" +
 			renderActivityGrid(days, end, today, inner)
 		if width >= 12 {

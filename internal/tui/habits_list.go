@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -31,7 +32,7 @@ func (m Model) listHabitsView() string {
 		b.WriteString("No habits loaded. Press r to fetch habits.\n")
 	}
 	for _, habit := range m.habitsList {
-		b.WriteString("  - " + habit.Name + "\n")
+		b.WriteString(fmt.Sprintf("  - %s | Highest streak: %d\n", habit.Name, habit.HighestStreak))
 		if habit.Description != "" {
 			b.WriteString("    " + habit.Description + "\n")
 		}
