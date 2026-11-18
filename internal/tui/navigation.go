@@ -10,6 +10,7 @@ const (
 	screenListHabits
 	screenTrackHabit
 	screenCreateNewHabit
+	screenLogin
 )
 
 func (m Model) navigateTo(next screen) (Model, tea.Cmd) {

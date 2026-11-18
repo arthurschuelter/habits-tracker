@@ -106,7 +106,7 @@ func (m Model) submitHabit() (tea.Model, tea.Cmd) {
 	}
 	m.form.saving = true
 	m.form.err = nil
-	return m, createHabit(m.client, name, strings.TrimSpace(m.form.description.Value()))
+	return m, m.createHabit(name, strings.TrimSpace(m.form.description.Value()))
 }
 
 func (m Model) createHabitView() string {

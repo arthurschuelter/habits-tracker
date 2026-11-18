@@ -33,7 +33,7 @@ func openHabitForm(t *testing.T, m Model) Model {
 
 func TestCreateHabitSaveFailureAndRetry(t *testing.T) {
 	calls := 0
-	m := openHabitForm(t, New(formClient{
+	m := openHabitForm(t, newMainModel(formClient{
 		habitListerFunc: func(context.Context) ([]habitclient.Habit, error) {
 			return []habitclient.Habit{{ID: "habit-1", Name: "Read", Description: "20 minutes"}}, nil
 		},
@@ -76,7 +76,7 @@ func TestCreateHabitSaveFailureAndRetry(t *testing.T) {
 }
 
 func TestCreateHabitRequiresNameAndCanCancel(t *testing.T) {
-	m := openHabitForm(t, New(nil))
+	m := openHabitForm(t, newMainModel(nil))
 	for _, text := range []string{"Create new habit", "Name", "Description (optional)", "Save habit"} {
 		if !strings.Contains(m.View().Content, text) {
 			t.Errorf("form is missing %q", text)
@@ -95,7 +95,7 @@ func TestCreateHabitRequiresNameAndCanCancel(t *testing.T) {
 }
 
 func TestCreateHabitTextEditing(t *testing.T) {
-	m := openHabitForm(t, New(nil))
+	m := openHabitForm(t, newMainModel(nil))
 	// Letters that navigate other screens must remain ordinary input here.
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: 'q', Text: "q"})
 	m, _ = updateModel(t, m, tea.PasteMsg{Content: "café"})
@@ -119,7 +119,7 @@ func TestCreateHabitTextEditing(t *testing.T) {
 func TestCreateHabitMultilineDescription(t *testing.T) {
 	const description = "Read daily\n20 minutes"
 	calls := 0
-	m := openHabitForm(t, New(formClient{
+	m := openHabitForm(t, newMainModel(formClient{
 		create: func(_ context.Context, name, got string) error {
 			calls++
 			if name != "Read" || got != description {

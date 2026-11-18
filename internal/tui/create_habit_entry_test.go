@@ -22,7 +22,7 @@ func (c entryClient) CreateHabitEntry(ctx context.Context, entry habitclient.Ent
 
 func openEntryForm(t *testing.T, client HabitClient) (Model, tea.Cmd) {
 	t.Helper()
-	m := New(client)
+	m := newMainModel(client)
 	for range 2 {
 		m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyDown})
 	}

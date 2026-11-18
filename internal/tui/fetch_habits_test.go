@@ -22,7 +22,7 @@ func TestFetchHabitsDashboard(t *testing.T) {
 		{ID: "study", Name: "Study"},
 	}
 	calls := 0
-	m := New(habitListerFunc(func(context.Context) ([]habitclient.Habit, error) {
+	m := newMainModel(habitListerFunc(func(context.Context) ([]habitclient.Habit, error) {
 		calls++
 		return want, nil
 	}))
@@ -56,7 +56,7 @@ func TestFetchHabitsDashboard(t *testing.T) {
 }
 
 func TestFetchHabitsScrollResizeAndRefresh(t *testing.T) {
-	m := New(habitListerFunc(func(context.Context) ([]habitclient.Habit, error) {
+	m := newMainModel(habitListerFunc(func(context.Context) ([]habitclient.Habit, error) {
 		return nil, errors.New("API unavailable")
 	}))
 	m, _ = m.navigateTo(screenFetchHabits)
@@ -117,7 +117,7 @@ func TestActivityGridDatesAndDurations(t *testing.T) {
 
 func TestDashboardReturnKeepsMenuInAlternateScreen(t *testing.T) {
 	for _, back := range []rune{'b', tea.KeyEscape} {
-		m := New(nil)
+		m := newMainModel(nil)
 		m, _ = updateModel(t, m, tea.WindowSizeMsg{Width: 80, Height: 24})
 		require.True(t, m.View().AltScreen)
 		m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})

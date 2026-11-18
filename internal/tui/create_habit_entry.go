@@ -176,7 +176,7 @@ func (m Model) submitHabitEntry() (tea.Model, tea.Cmd) {
 	}
 	f.err = nil
 	f.saving = true
-	return m, createHabitEntry(m.client, habitclient.EntryRequest{
+	return m, m.createHabitEntry(habitclient.EntryRequest{
 		HabitID: selected.habit.ID, Date: date, Duration: duration,
 	})
 }

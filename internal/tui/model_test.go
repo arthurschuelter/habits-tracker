@@ -36,7 +36,7 @@ func updateModel(t *testing.T, m Model, msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func TestMenuNavigation(t *testing.T) {
-	m := New(nil)
+	m := newMainModel(nil)
 	for _, code := range []rune{tea.KeyUp, 'k'} {
 		m, _ = updateModel(t, m, tea.KeyPressMsg{Code: code})
 	}
@@ -62,7 +62,7 @@ func TestMenuNavigation(t *testing.T) {
 func TestFetchCompletesAfterReturningToMenu(t *testing.T) {
 	want := []habitclient.Habit{{ID: "habit-1", Name: "Read", Description: "Read daily"}}
 	calls := 0
-	m := New(habitListerFunc(func(context.Context) ([]habitclient.Habit, error) {
+	m := newMainModel(habitListerFunc(func(context.Context) ([]habitclient.Habit, error) {
 		calls++
 		return want, nil
 	}))
@@ -100,7 +100,7 @@ func TestFetchCompletesAfterReturningToMenu(t *testing.T) {
 
 func TestRefreshFailureAndRetry(t *testing.T) {
 	fetchErr := errors.New("API unavailable")
-	m := New(habitListerFunc(func(context.Context) ([]habitclient.Habit, error) {
+	m := newMainModel(habitListerFunc(func(context.Context) ([]habitclient.Habit, error) {
 		return nil, fetchErr
 	}))
 	m.screen = screenListHabits
@@ -134,7 +134,7 @@ func TestRefreshFailureAndRetry(t *testing.T) {
 func TestQuitFromBrowsingScreens(t *testing.T) {
 	for _, screen := range []screen{screenMain, screenListHabits, screenFetchHabits} {
 		for _, key := range []tea.KeyPressMsg{{Code: 'q'}, {Code: 'c', Mod: tea.ModCtrl}} {
-			m := New(nil)
+			m := newMainModel(nil)
 			m.screen = screen
 			_, cmd := updateModel(t, m, key)
 			if cmd == nil {
@@ -145,4 +145,11 @@ func TestQuitFromBrowsingScreens(t *testing.T) {
 			}
 		}
 	}
+}
+
+func newMainModel(client HabitClient) Model {
+	m := New(nil)
+	m.screen = screenMain
+	m.client = client
+	return m
 }

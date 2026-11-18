@@ -20,6 +20,8 @@ func (m Model) View() tea.View {
 func (m Model) standardView() tea.View {
 	title, help, content := mainMenuTitle, mainMenuHelp, ""
 	switch m.screen {
+	case screenLogin:
+		title, help, content = loginTitle, loginHelp, m.loginView()
 	case screenTrackHabit:
 		title, help, content = createHabitEntryTitle, createHabitEntryHelp, m.createHabitEntryView()
 	case screenCreateNewHabit:

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/arthurschuelter/habits-tracker/internal/habitclient"
@@ -14,27 +15,36 @@ type HabitClient interface {
 }
 
 type Model struct {
-	client      HabitClient
-	menuOptions []string
-	habitsList  []habitclient.Habit
-	loading     bool
-	fetchErr    error
-	screen      screen
-	form        habitForm
-	entryForm   habitEntryForm
-	dashboard   habitsDashboard
-	notice      string
-	cursor      int
-	width       int
-	height      int
+	authenticate func(context.Context, string, string) (HabitClient, error)
+	session      uint64
+	login        loginForm
+	startCursor  tea.Cmd
+	client       HabitClient
+	menuOptions  []string
+	habitsList   []habitclient.Habit
+	loading      bool
+	fetchErr     error
+	screen       screen
+	form         habitForm
+	entryForm    habitEntryForm
+	dashboard    habitsDashboard
+	notice       string
+	cursor       int
+	width        int
+	height       int
 }
 
-func New(client HabitClient) Model {
+func New(authenticate func(context.Context, string, string) (HabitClient, error)) Model {
+	login := newLoginForm(64)
+	startCursor := login.username.Focus()
 	return Model{
-		client:    client,
-		dashboard: newHabitsDashboard(),
-		width:     64,
-		height:    24,
+		startCursor:  startCursor,
+		authenticate: authenticate,
+		screen:       screenLogin,
+		login:        login,
+		dashboard:    newHabitsDashboard(),
+		width:        64,
+		height:       24,
 		menuOptions: []string{
 			"Fetch habits",
 			"List Habits",
@@ -45,11 +55,29 @@ func New(client HabitClient) Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return nil
+	return m.startCursor
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if size, ok := msg.(tea.WindowSizeMsg); ok {
+		m.width = size.Width
+		m.height = size.Height
+	}
+
+	key, isKey := msg.(tea.KeyPressMsg)
+	if isKey && key.String() == "ctrl+c" {
+		return m, tea.Quit
+	}
+	if m.screen == screenLogin {
+		return m.updateLogin(msg)
+	}
 	if result, ok := msg.(habitEntryCreatedMsg); ok {
+		if result.session != m.session {
+			return m, nil
+		}
+		if errors.Is(result.err, habitclient.ErrSessionExpired) {
+			return m.endSession()
+		}
 		m.entryForm.saving = false
 		m.entryForm.err = result.err
 		if result.err == nil {
@@ -61,6 +89,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	if result, ok := msg.(habitCreatedMsg); ok {
+		if result.session != m.session {
+			return m, nil
+		}
+		if errors.Is(result.err, habitclient.ErrSessionExpired) {
+			return m.endSession()
+		}
 		m.form.saving = false
 		m.form.err = result.err
 		if result.err == nil {
@@ -70,6 +104,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	if result, ok := msg.(habitsFetchedMsg); ok {
+		if result.session != m.session {
+			return m, nil
+		}
+		if errors.Is(result.err, habitclient.ErrSessionExpired) {
+			return m.endSession()
+		}
 		m.loading = false
 		m.fetchErr = result.err
 		if result.err == nil {
@@ -85,15 +125,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if size, ok := msg.(tea.WindowSizeMsg); ok {
-		m.width = size.Width
-		m.height = size.Height
-	}
-
-	key, isKey := msg.(tea.KeyPressMsg)
-	if isKey && key.String() == "ctrl+c" {
-		return m, tea.Quit
-	}
 	if m.screen == screenCreateNewHabit {
 		return m.updateCreateHabit(msg)
 	}

@@ -8,34 +8,37 @@ import (
 )
 
 type habitsFetchedMsg struct {
-	habits []habitclient.Habit
-	err    error
+	session uint64
+	habits  []habitclient.Habit
+	err     error
 }
 
-func fetchHabits(client HabitClient) tea.Cmd {
+func (m Model) fetchHabits() tea.Cmd {
 	return func() tea.Msg {
-		habits, err := client.ListHabits(context.Background())
-		return habitsFetchedMsg{habits: habits, err: err}
+		habits, err := m.client.ListHabits(context.Background())
+		return habitsFetchedMsg{session: m.session, habits: habits, err: err}
 	}
 }
 
 type habitCreatedMsg struct {
-	err error
+	session uint64
+	err     error
 }
 
-func createHabit(client HabitClient, name, description string) tea.Cmd {
+func (m Model) createHabit(name, description string) tea.Cmd {
 	return func() tea.Msg {
-		return habitCreatedMsg{err: client.CreateHabit(context.Background(), name, description)}
+		return habitCreatedMsg{session: m.session, err: m.client.CreateHabit(context.Background(), name, description)}
 	}
 }
 
 type habitEntryCreatedMsg struct {
-	err error
+	session uint64
+	err     error
 }
 
-func createHabitEntry(client HabitClient, request habitclient.EntryRequest) tea.Cmd {
+func (m Model) createHabitEntry(request habitclient.EntryRequest) tea.Cmd {
 	return func() tea.Msg {
-		return habitEntryCreatedMsg{err: client.CreateHabitEntry(context.Background(), request)}
+		return habitEntryCreatedMsg{session: m.session, err: m.client.CreateHabitEntry(context.Background(), request)}
 	}
 }
 
@@ -48,5 +51,5 @@ func (m Model) refreshHabits() (Model, tea.Cmd) {
 	if m.screen == screenFetchHabits {
 		m.syncHabitsDashboard()
 	}
-	return m, fetchHabits(m.client)
+	return m, m.fetchHabits()
 }
