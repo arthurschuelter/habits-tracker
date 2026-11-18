@@ -29,13 +29,8 @@ definitions:
         example: Read
         minLength: 1
         type: string
-      user_id:
-        example: 0a483f13-1ffc-4f85-aa71-98a9b96fedfe
-        format: uuid
-        type: string
     required:
     - name
-    - user_id
     type: object
   api.errorResponseDTO:
     properties:
@@ -67,8 +62,6 @@ definitions:
   api.habitResponseDTO:
     properties:
       created_at:
-        description: Creation timestamp in RFC3339 format; null for legacy habits
-          with an unknown creation time.
         example: "2026-11-17T12:34:56Z"
         format: date-time
         type: string
@@ -96,11 +89,26 @@ definitions:
         minimum: 0
         type: integer
     type: object
+  api.loginRequestDTO:
+    properties:
+      password:
+        format: password
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  api.loginResponseDTO:
+    properties:
+      token:
+        type: string
+    type: object
 info:
   contact: {}
   description: Create habits, list habits with daily entries and streaks, and record
-    time spent on a habit. Authentication is not implemented; listing uses a fixed
-    development user.
+    time spent on a habit. Habit routes require an authenticated session.
   title: Habits Tracker API
   version: "2.0"
 paths:
@@ -122,11 +130,11 @@ paths:
     post:
       consumes:
       - application/json
-      description: Records whole minutes for an existing habit. An omitted or blank
-        date defaults to today's date in the server's local time. Dates use YYYY-MM-DD.
-        Only one entry per habit/date is allowed; duplicate requests do not accumulate
-        duration. Returns an empty body on success. The legacy entry_date field is
-        not supported; use date.
+      description: Records whole minutes for a habit owned by the authenticated user.
+        An omitted or blank date defaults to today's date in the server's local time.
+        Dates use YYYY-MM-DD. Only one entry per habit/date is allowed; duplicate
+        requests do not accumulate duration. Returns an empty body on success. The
+        legacy entry_date field is not supported; use date.
       parameters:
       - description: Entry to record
         in: body
@@ -143,6 +151,10 @@ paths:
           description: Invalid request body, habit_id, date, or duration
           schema:
             $ref: '#/definitions/api.errorResponseDTO'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
         "404":
           description: Habit not found
           schema:
@@ -155,13 +167,14 @@ paths:
           description: Unexpected server error
           schema:
             $ref: '#/definitions/api.errorResponseDTO'
+      security:
+      - BearerAuth: []
       summary: Record a habit entry
       tags:
       - Habit entries
   /habits:
     get:
-      description: Lists habits for the fixed development user 0a483f13-1ffc-4f85-aa71-98a9b96fedfe.
-        No user selection or authentication is available. Entries are arrays (empty
+      description: Lists habits for the authenticated user. Entries are arrays (empty
         when none exist). Current streaks count consecutive recorded dates ending
         today or yesterday in the server's local time.
       produces:
@@ -173,19 +186,24 @@ paths:
             items:
               $ref: '#/definitions/api.habitResponseDTO'
             type: array
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
         "500":
           description: Unexpected server error
           schema:
             $ref: '#/definitions/api.errorResponseDTO'
+      security:
+      - BearerAuth: []
       summary: List habits
       tags:
       - Habits
     post:
       consumes:
       - application/json
-      description: Requires a nonblank name and an existing user's ID. The name is
-        trimmed. Returns an empty body on success. Invalid or nonexistent user IDs
-        currently result in a server error.
+      description: Creates a habit for the authenticated user. The name is trimmed
+        and must be nonblank. Returns an empty body on success.
       parameters:
       - description: Habit to create
         in: body
@@ -199,14 +217,70 @@ paths:
         "201":
           description: Habit created; empty body
         "400":
-          description: Invalid request body or missing name/user_id
+          description: Invalid request body or missing name
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+        "401":
+          description: Authentication required
           schema:
             $ref: '#/definitions/api.errorResponseDTO'
         "500":
           description: Unexpected server error
           schema:
             $ref: '#/definitions/api.errorResponseDTO'
+      security:
+      - BearerAuth: []
       summary: Create a habit
       tags:
       - Habits
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Sign in with an existing username and password. The bearer token
+        expires after 24 hours. Signing in again replaces the previous session for
+        that user.
+      parameters:
+      - description: Login credentials
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/api.loginRequestDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.loginResponseDTO'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+        "401":
+          description: Invalid username or password
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+        "413":
+          description: Request body too large
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+        "429":
+          description: Too many attempts
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+        "500":
+          description: Unexpected server error
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+      summary: Sign in
+      tags:
+      - Authentication
+securityDefinitions:
+  BearerAuth:
+    description: Use Bearer followed by a space and the token from POST /login.
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

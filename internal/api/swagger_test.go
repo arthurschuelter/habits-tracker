@@ -33,7 +33,8 @@ func TestSwaggerUIAndAssets(t *testing.T) {
 
 func TestSwaggerSpecification(t *testing.T) {
 	e := echo.New()
-	NewHabitHandler(nil, nil).Routes(e)
+	NewHabitHandler(nil, nil).Routes(e, testSession)
+	NewAuthHandler(nil).Routes(e)
 	RegisterDocumentationRoutes(e)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/swagger/doc.json", nil))
@@ -82,7 +83,7 @@ func TestSwaggerSpecification(t *testing.T) {
 	}
 
 	habitRequest := doc.Definitions["api.CreateHabitRequestDTO"]
-	require.ElementsMatch(t, []string{"name", "user_id"}, habitRequest.Required)
+	require.ElementsMatch(t, []string{"name"}, habitRequest.Required)
 	entryRequest := doc.Definitions["api.CreateEntryRequestRequestDTO"]
 	require.ElementsMatch(t, []string{"habit_id", "duration"}, entryRequest.Required)
 	duration := entryRequest.Properties["duration"]

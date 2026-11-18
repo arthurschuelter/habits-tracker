@@ -26,7 +26,7 @@ func (c *Client) CreateHabitEntry(ctx context.Context, entry EntryRequest) error
 		return fmt.Errorf("create habit entry: %w", err)
 	}
 	request.Header.Set("Content-Type", "application/json")
-	response, err := c.httpClient.Do(request)
+	response, err := c.doHabitRequest(request)
 	if err != nil {
 		return fmt.Errorf("create habit entry: %w", err)
 	}

@@ -4,7 +4,7 @@ Track habits and the time spent on them with a Go HTTP API, PostgreSQL, and a
 Bubble Tea terminal interface.
 
 The project is migrating from a Python/FastAPI backend to Go. The Go API supports
-creating habits, listing habits, and recording daily entries. The original API
+signing in, creating and listing habits, and recording daily entries. The original API
 remains in [`api/`](api/) as a migration reference. Some client integration and
 feature-parity work is still in progress; see [Known limitations](#known-limitations).
 
@@ -56,12 +56,22 @@ Once PostgreSQL is accepting connections, apply the schema:
 make migrate
 ```
 
-Migrations seed the fixed development user
-`0a483f13-1ffc-4f85-aa71-98a9b96fedfe` used by the API and terminal clients.
-If that user already exists, its details are preserved.
-Database data persists in the Compose `postgres-data` volume.
+Migrations seed an account with username `development`. Existing users and
+habits are preserved. Database data persists in the Compose `postgres-data`
+volume.
 
-### 3. Start the API
+### 3. Set a password
+
+```sh
+go run ./cmd/api set-password development@habits-tracker.invalid
+```
+
+Enter and confirm a password at the hidden prompts. Use at least 15 characters,
+up to 1024 bytes. To set or reset a password for another existing account, pass
+its email instead. Sign in with the account's username. Migration 00008 leaves
+passwords unset, so each account needs this step before its first login.
+
+### 4. Start the API
 
 ```sh
 make api
@@ -73,7 +83,7 @@ The API listens on `http://localhost:1323`. Check connectivity with:
 curl http://localhost:1323/api/v2/
 ```
 
-### 4. Open the terminal interface
+### 5. Open the terminal interface
 
 In a separate terminal:
 
@@ -81,7 +91,8 @@ In a separate terminal:
 make tui
 ```
 
-Use the arrow keys to navigate the menu and Enter to select a screen. Forms use
+Sign in with your username and password. Then use the arrow keys to navigate
+the menu and Enter to select a screen. Forms use
 Tab/Shift+Tab to change fields, Ctrl+S to save, and Esc to cancel. Ctrl+C exits.
 The TUI connects to `http://localhost:1323/api/v2`.
 
@@ -95,12 +106,14 @@ Current streaks count consecutive recorded days ending today or yesterday. A
 streak ending yesterday remains active until the end of today, using the server's
 local date.
 
-The older terminal client is available through `make ui`.
+The older terminal client does not support the authenticated habit routes.
 
 ## API
 
-The Go API uses the `/api/v2` prefix. Both terminal clients use these versioned
-routes.
+The Go API uses the `/api/v2` prefix. Send `username` and `password` as JSON
+to `POST /api/v2/login` and use the returned `token` as
+`Authorization: Bearer TOKEN` on habit requests. Sessions expire after 24 hours.
+Signing in again or resetting the password invalidates the previous session.
 
 With `make api` running, open [Swagger UI](http://localhost:1323/swagger/index.html)
 to browse schemas, examples, validation rules, and responses, and try requests
@@ -117,37 +130,39 @@ are included in the binary, so normal builds do not require regeneration.
 | Method | Path | Behavior |
 |---|---|---|
 | GET | `/api/v2/` | Return a greeting |
-| GET | `/api/v2/habits` | List habits for the temporary configured user |
+| POST | `/api/v2/login` | Exchange a username and password for a session token |
+| GET | `/api/v2/habits` | List habits owned by the signed-in user |
 | POST | `/api/v2/habits` | Create a habit; return 201 with an empty body |
 | POST | `/api/v2/habit_entries` | Record a daily entry; return 201 with an empty body |
 
 ### Create a habit
 
-`name` and `user_id` are required. `description` is optional. The user must exist
-in PostgreSQL.
+`name` is required and `description` is optional. The session determines the
+owner. In the examples below, set `TOKEN` to the token returned by login.
 
 ```sh
 curl -i -X POST http://localhost:1323/api/v2/habits \
+  -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{
     "name": "Read",
-    "description": "Read for 20 minutes",
-    "user_id": "0a483f13-1ffc-4f85-aa71-98a9b96fedfe"
+    "description": "Read for 20 minutes"
   }'
 ```
 
 Fetch the habit list to obtain its generated ID:
 
 ```sh
-curl http://localhost:1323/api/v2/habits
+curl -H "Authorization: Bearer $TOKEN" http://localhost:1323/api/v2/habits
 ```
 
 ### Record an entry
 
-Replace `REPLACE_WITH_HABIT_ID` with an existing habit's UUID:
+Replace `REPLACE_WITH_HABIT_ID` with the UUID of one of your habits:
 
 ```sh
 curl -i -X POST http://localhost:1323/api/v2/habit_entries \
+  -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{
     "habit_id": "REPLACE_WITH_HABIT_ID",
@@ -162,8 +177,8 @@ curl -i -X POST http://localhost:1323/api/v2/habit_entries \
 - Each habit can have one entry per date. Reposting a habit/date pair returns
   409; it does not update or accumulate duration.
 
-Entry validation failures return 400, nonexistent habits return 404, and duplicate
-entries return 409. Unexpected server errors return 500.
+Entry validation failures return 400, missing or invalid sessions return 401,
+and missing or unowned habits return 404. Duplicate entries return 409. Unexpected server errors return 500.
 
 ## Development commands
 
@@ -223,9 +238,8 @@ relevant database constraint violations into domain errors.
 
 ## Known limitations
 
-- Authentication and user registration are unfinished. Habit listing uses a
-  hardcoded development user, while habit creation requires an explicit `user_id`.
-- The TUI creates habits for the same hardcoded development user used by listing.
+- User registration is unfinished. An operator sets passwords for existing users
+  with `go run ./cmd/api set-password EMAIL`.
 - Separate entry listing and habit/entry timestamps remain migration work.
   Update/delete endpoints are unfinished.
 - The legacy Python API uses `/api/...` routes and `entry_date` instead of Go's

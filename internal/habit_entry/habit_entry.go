@@ -21,5 +21,5 @@ type HabitEntry struct {
 type Repository interface {
 	ListByHabitID(ctx context.Context, habitID string) ([]HabitEntry, error)
 	ListByHabitIDs(ctx context.Context, habitIDs []string) (map[string][]HabitEntry, error)
-	Create(ctx context.Context, entry *HabitEntry) (HabitEntry, error)
+	Create(ctx context.Context, userID string, entry *HabitEntry) (HabitEntry, error)
 }

@@ -23,7 +23,6 @@ type habitEntryResponseDTO struct {
 type CreateHabitRequestDTO struct {
 	Name        string `json:"name" binding:"required" minLength:"1" example:"Read"`
 	Description string `json:"description" example:"Read for 20 minutes"`
-	UserID      string `json:"user_id" binding:"required" format:"uuid" example:"0a483f13-1ffc-4f85-aa71-98a9b96fedfe"`
 }
 
 type CreateEntryRequestRequestDTO struct {

@@ -12,11 +12,11 @@ func NewService(r Repository) *Service {
 	return &Service{repo: r}
 }
 
-func (s *Service) Create(ctx context.Context, e *HabitEntry) (HabitEntry, error) {
+func (s *Service) Create(ctx context.Context, userID string, e *HabitEntry) (HabitEntry, error) {
 	entry, err := Validate(*e)
 	if err != nil {
 		return HabitEntry{}, err
 	}
 
-	return s.repo.Create(ctx, &entry)
+	return s.repo.Create(ctx, userID, &entry)
 }

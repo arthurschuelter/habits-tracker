@@ -29,11 +29,11 @@ func TestCreateHabitSavesCreatedAt(t *testing.T) {
 	}{
 		{
 			name: "server assigns creation time",
-			body: `{"name":"Read","user_id":"0a483f13-1ffc-4f85-aa71-98a9b96fedfe"}`,
+			body: `{"name":"Read"}`,
 		},
 		{
 			name: "client cannot override creation time",
-			body: `{"name":"Read","user_id":"0a483f13-1ffc-4f85-aa71-98a9b96fedfe","created_at":"2000-01-01T00:00:00Z"}`,
+			body: `{"name":"Read","created_at":"2000-01-01T00:00:00Z"}`,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -46,13 +46,16 @@ func TestCreateHabitSavesCreatedAt(t *testing.T) {
 			entries := habit_entry.NewPostgresRepo(testDB)
 			habits := habit.NewPostgresRepo(testDB, entries)
 			e := echo.New()
-			api.NewHabitHandler(habit.NewService(habits), nil).Routes(e)
+			api.NewHabitHandler(habit.NewService(habits), nil).Routes(e, func(context.Context, string) (string, error) {
+				return userID, nil
+			})
 
 			// Use the database clock for bounds to avoid application/database clock skew.
 			var before time.Time
 			require.NoError(t, testDB.QueryRowContext(ctx, `SELECT clock_timestamp()`).Scan(&before))
 			req := httptest.NewRequest(http.MethodPost, "/api/v2/habits", strings.NewReader(tt.body)).WithContext(ctx)
 			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer test-session")
 			rec := httptest.NewRecorder()
 			e.ServeHTTP(rec, req)
 			require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
@@ -86,7 +89,9 @@ func TestCreateHabitSavesCreatedAt(t *testing.T) {
 			require.ErrorIs(t, err, habit.ErrNotFound)
 
 			rec = httptest.NewRecorder()
-			e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v2/habits", nil).WithContext(ctx))
+			req = httptest.NewRequest(http.MethodGet, "/api/v2/habits", nil).WithContext(ctx)
+			req.Header.Set("Authorization", "Bearer test-session")
+			e.ServeHTTP(rec, req)
 			require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 			var listed []habitclient.Habit
 			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &listed))

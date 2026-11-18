@@ -9,13 +9,11 @@ import (
 	"strings"
 )
 
-// Matches the API's current user for habit listing until authentication is added.
-const developmentUserID = "0a483f13-1ffc-4f85-aa71-98a9b96fedfe"
-
 // Client provides HTTP access to the habits API.
 type Client struct {
 	baseURL    string
 	httpClient *http.Client
+	token      string
 }
 
 // CreateHabit saves a habit for the API's current user.
@@ -23,8 +21,7 @@ func (c *Client) CreateHabit(ctx context.Context, name, description string) erro
 	body, err := json.Marshal(struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
-		UserID      string `json:"user_id"`
-	}{Name: name, Description: description, UserID: developmentUserID})
+	}{Name: name, Description: description})
 	if err != nil {
 		return fmt.Errorf("encode habit: %w", err)
 	}
@@ -33,7 +30,7 @@ func (c *Client) CreateHabit(ctx context.Context, name, description string) erro
 		return fmt.Errorf("create habit: %w", err)
 	}
 	request.Header.Set("Content-Type", "application/json")
-	response, err := c.httpClient.Do(request)
+	response, err := c.doHabitRequest(request)
 	if err != nil {
 		return fmt.Errorf("create habit: %w", err)
 	}
@@ -47,9 +44,12 @@ func (c *Client) CreateHabit(ctx context.Context, name, description string) erro
 // New creates a client using the supplied base URL and HTTP client.
 // The base URL includes the API prefix, for example http://localhost:1323/api/v2.
 func New(baseURL string, httpClient *http.Client) *Client {
+	client := *httpClient
+	// Login credentials and bearer tokens are sent only to configured endpoints.
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	return &Client{
 		baseURL:    strings.TrimRight(baseURL, "/"),
-		httpClient: httpClient,
+		httpClient: &client,
 	}
 }
 
@@ -59,7 +59,7 @@ func (c *Client) ListHabits(ctx context.Context) ([]Habit, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fetch habits: %w", err)
 	}
-	response, err := c.httpClient.Do(request)
+	response, err := c.doHabitRequest(request)
 	if err != nil {
 		return nil, fmt.Errorf("fetch habits: %w", err)
 	}

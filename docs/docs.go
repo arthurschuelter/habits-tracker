@@ -39,7 +39,12 @@ const docTemplate = `{
         },
         "/habit_entries": {
             "post": {
-                "description": "Records whole minutes for an existing habit. An omitted or blank date defaults to today's date in the server's local time. Dates use YYYY-MM-DD. Only one entry per habit/date is allowed; duplicate requests do not accumulate duration. Returns an empty body on success. The legacy entry_date field is not supported; use date.",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Records whole minutes for a habit owned by the authenticated user. An omitted or blank date defaults to today's date in the server's local time. Dates use YYYY-MM-DD. Only one entry per habit/date is allowed; duplicate requests do not accumulate duration. Returns an empty body on success. The legacy entry_date field is not supported; use date.",
                 "consumes": [
                     "application/json"
                 ],
@@ -71,6 +76,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.errorResponseDTO"
                         }
                     },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
                     "404": {
                         "description": "Habit not found",
                         "schema": {
@@ -94,7 +105,12 @@ const docTemplate = `{
         },
         "/habits": {
             "get": {
-                "description": "Lists habits for the fixed development user 0a483f13-1ffc-4f85-aa71-98a9b96fedfe. No user selection or authentication is available. Entries are arrays (empty when none exist). Current streaks count consecutive recorded dates ending today or yesterday in the server's local time.",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Lists habits for the authenticated user. Entries are arrays (empty when none exist). Current streaks count consecutive recorded dates ending today or yesterday in the server's local time.",
                 "produces": [
                     "application/json"
                 ],
@@ -112,6 +128,12 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
                     "500": {
                         "description": "Unexpected server error",
                         "schema": {
@@ -121,7 +143,12 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Requires a nonblank name and an existing user's ID. The name is trimmed. Returns an empty body on success. Invalid or nonexistent user IDs currently result in a server error.",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a habit for the authenticated user. The name is trimmed and must be nonblank. Returns an empty body on success.",
                 "consumes": [
                     "application/json"
                 ],
@@ -148,7 +175,77 @@ const docTemplate = `{
                         "description": "Habit created; empty body"
                     },
                     "400": {
-                        "description": "Invalid request body or missing name/user_id",
+                        "description": "Invalid request body or missing name",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected server error",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/login": {
+            "post": {
+                "description": "Sign in with an existing username and password. The bearer token expires after 24 hours. Signing in again replaces the previous session for that user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Sign in",
+                "parameters": [
+                    {
+                        "description": "Login credentials",
+                        "name": "credentials",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.loginRequestDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.loginResponseDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid username or password",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
+                    "413": {
+                        "description": "Request body too large",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
+                    "429": {
+                        "description": "Too many attempts",
                         "schema": {
                             "$ref": "#/definitions/api.errorResponseDTO"
                         }
@@ -192,8 +289,7 @@ const docTemplate = `{
         "api.CreateHabitRequestDTO": {
             "type": "object",
             "required": [
-                "name",
-                "user_id"
+                "name"
             ],
             "properties": {
                 "description": {
@@ -204,11 +300,6 @@ const docTemplate = `{
                     "type": "string",
                     "minLength": 1,
                     "example": "Read"
-                },
-                "user_id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "example": "0a483f13-1ffc-4f85-aa71-98a9b96fedfe"
                 }
             }
         },
@@ -252,7 +343,6 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "created_at": {
-                    "description": "Creation timestamp in RFC3339 format; null for legacy habits with an unknown creation time.",
                     "type": "string",
                     "format": "date-time",
                     "x-nullable": true,
@@ -288,6 +378,38 @@ const docTemplate = `{
                     "example": 2
                 }
             }
+        },
+        "api.loginRequestDTO": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string",
+                    "format": "password"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.loginResponseDTO": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Use Bearer followed by a space and the token from POST /login.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }`
@@ -299,7 +421,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/api/v2",
 	Schemes:          []string{},
 	Title:            "Habits Tracker API",
-	Description:      "Create habits, list habits with daily entries and streaks, and record time spent on a habit. Authentication is not implemented; listing uses a fixed development user.",
+	Description:      "Create habits, list habits with daily entries and streaks, and record time spent on a habit. Habit routes require an authenticated session.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

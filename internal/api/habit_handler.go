@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,9 +10,6 @@ import (
 	"github.com/arthurschuelter/habits-tracker/internal/habit_entry"
 	"github.com/labstack/echo/v5"
 )
-
-// currentUserID is shared by list and create until authentication is added.
-const currentUserID = "0a483f13-1ffc-4f85-aa71-98a9b96fedfe"
 
 type HabitHandler struct {
 	habits  *habit.Service
@@ -22,12 +20,13 @@ func NewHabitHandler(h *habit.Service, he *habit_entry.Service) *HabitHandler {
 	return &HabitHandler{habits: h, entries: he}
 }
 
-func (h *HabitHandler) Routes(e *echo.Echo) {
+func (h *HabitHandler) Routes(e *echo.Echo, sessionUser func(context.Context, string) (string, error)) {
 	v2 := e.Group("/api/v2")
 	v2.GET("/", h.Greeting)
-	v2.GET("/habits", h.GetHabits)
-	v2.POST("/habits", h.CreateHabits)
-	v2.POST("/habit_entries", h.CreateHabitEntries)
+	session := requireSession(sessionUser)
+	v2.GET("/habits", h.GetHabits, session)
+	v2.POST("/habits", h.CreateHabits, session)
+	v2.POST("/habit_entries", h.CreateHabitEntries, session)
 }
 
 // Greeting returns the API greeting.
@@ -62,16 +61,18 @@ func toHabitResponse(hb habit.Habit) habitResponseDTO {
 	}
 }
 
-// GetHabits lists habits for the development user.
+// GetHabits lists habits for the authenticated user.
 // @Summary List habits
-// @Description Lists habits for the fixed development user 0a483f13-1ffc-4f85-aa71-98a9b96fedfe. No user selection or authentication is available. Entries are arrays (empty when none exist). Current streaks count consecutive recorded dates ending today or yesterday in the server's local time.
+// @Description Lists habits for the authenticated user. Entries are arrays (empty when none exist). Current streaks count consecutive recorded dates ending today or yesterday in the server's local time.
 // @Tags Habits
 // @Produce json
 // @Success 200 {array} habitResponseDTO
+// @Security BearerAuth
+// @Failure 401 {object} errorResponseDTO "Authentication required"
 // @Failure 500 {object} errorResponseDTO "Unexpected server error"
 // @Router /habits [get]
 func (h *HabitHandler) GetHabits(ctx *echo.Context) error {
-	userID := currentUserID
+	userID := authenticatedUser(ctx)
 
 	habits, err := h.habits.List(ctx.Request().Context(), userID)
 	if err != nil {
@@ -88,13 +89,15 @@ func (h *HabitHandler) GetHabits(ctx *echo.Context) error {
 
 // CreateHabits creates a habit.
 // @Summary Create a habit
-// @Description Requires a nonblank name and an existing user's ID. The name is trimmed. Returns an empty body on success. Invalid or nonexistent user IDs currently result in a server error.
+// @Description Creates a habit for the authenticated user. The name is trimmed and must be nonblank. Returns an empty body on success.
 // @Tags Habits
 // @Accept json
 // @Produce json
 // @Param habit body CreateHabitRequestDTO true "Habit to create"
 // @Success 201 "Habit created; empty body"
-// @Failure 400 {object} errorResponseDTO "Invalid request body or missing name/user_id"
+// @Failure 400 {object} errorResponseDTO "Invalid request body or missing name"
+// @Security BearerAuth
+// @Failure 401 {object} errorResponseDTO "Authentication required"
 // @Failure 500 {object} errorResponseDTO "Unexpected server error"
 // @Router /habits [post]
 func (h *HabitHandler) CreateHabits(ctx *echo.Context) error {
@@ -106,7 +109,7 @@ func (h *HabitHandler) CreateHabits(ctx *echo.Context) error {
 	hb := habit.Habit{
 		Name:        req.Name,
 		Description: req.Description,
-		UserID:      req.UserID,
+		UserID:      authenticatedUser(ctx),
 	}
 
 	if err := h.habits.Create(ctx.Request().Context(), &hb); err != nil {
@@ -118,7 +121,7 @@ func (h *HabitHandler) CreateHabits(ctx *echo.Context) error {
 
 // CreateHabitEntries records one daily entry for a habit.
 // @Summary Record a habit entry
-// @Description Records whole minutes for an existing habit. An omitted or blank date defaults to today's date in the server's local time. Dates use YYYY-MM-DD. Only one entry per habit/date is allowed; duplicate requests do not accumulate duration. Returns an empty body on success. The legacy entry_date field is not supported; use date.
+// @Description Records whole minutes for a habit owned by the authenticated user. An omitted or blank date defaults to today's date in the server's local time. Dates use YYYY-MM-DD. Only one entry per habit/date is allowed; duplicate requests do not accumulate duration. Returns an empty body on success. The legacy entry_date field is not supported; use date.
 // @Tags Habit entries
 // @Accept json
 // @Produce json
@@ -127,6 +130,8 @@ func (h *HabitHandler) CreateHabits(ctx *echo.Context) error {
 // @Failure 400 {object} errorResponseDTO "Invalid request body, habit_id, date, or duration"
 // @Failure 404 {object} errorResponseDTO "Habit not found"
 // @Failure 409 {object} errorResponseDTO "Entry already exists for this habit and date"
+// @Security BearerAuth
+// @Failure 401 {object} errorResponseDTO "Authentication required"
 // @Failure 500 {object} errorResponseDTO "Unexpected server error"
 // @Router /habit_entries [post]
 func (h *HabitHandler) CreateHabitEntries(ctx *echo.Context) error {
@@ -141,7 +146,7 @@ func (h *HabitHandler) CreateHabitEntries(ctx *echo.Context) error {
 		Duration: entryRequest.Duration,
 	}
 
-	if _, err := h.entries.Create(ctx.Request().Context(), &entry); err != nil {
+	if _, err := h.entries.Create(ctx.Request().Context(), authenticatedUser(ctx), &entry); err != nil {
 		if errors.Is(err, habit_entry.ErrHabitNotFound) {
 			return echo.NewHTTPError(http.StatusNotFound, habit_entry.ErrHabitNotFound.Error())
 		}

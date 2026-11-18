@@ -27,7 +27,7 @@ func (r *createEntryRepository) ListByHabitIDs(context.Context, []string) (map[s
 	return nil, nil
 }
 
-func (r *createEntryRepository) Create(_ context.Context, entry *habit_entry.HabitEntry) (habit_entry.HabitEntry, error) {
+func (r *createEntryRepository) Create(_ context.Context, _ string, entry *habit_entry.HabitEntry) (habit_entry.HabitEntry, error) {
 	r.created = entry
 	return *entry, r.err
 }
@@ -61,8 +61,8 @@ func TestCreateHabitEntry(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &createEntryRepository{err: tt.repoErr}
 			e := echo.New()
-			NewHabitHandler(nil, habit_entry.NewService(repo)).Routes(e)
-			req := httptest.NewRequest(http.MethodPost, apiPrefix+"/habit_entries", strings.NewReader(tt.body))
+			NewHabitHandler(nil, habit_entry.NewService(repo)).Routes(e, testSession)
+			req := authenticatedRequest(http.MethodPost, apiPrefix+"/habit_entries", strings.NewReader(tt.body))
 			req.Header.Set("Content-Type", "application/json")
 			rec := httptest.NewRecorder()
 			e.ServeHTTP(rec, req)

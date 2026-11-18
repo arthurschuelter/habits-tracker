@@ -78,7 +78,7 @@ func (r *PostgresRepo) ListByHabitIDs(ctx context.Context, habitIDs []string) (m
 
 }
 
-func (r *PostgresRepo) Create(ctx context.Context, entry *HabitEntry) (HabitEntry, error) {
+func (r *PostgresRepo) Create(ctx context.Context, userID string, entry *HabitEntry) (HabitEntry, error) {
 	const q = `
 		INSERT INTO habit_entries (habit_id, date, duration)
 		VALUES ($1, $2, $3)
@@ -92,7 +92,7 @@ func (r *PostgresRepo) Create(ctx context.Context, entry *HabitEntry) (HabitEntr
 	}
 	defer tx.Rollback()
 	var id string
-	err = tx.QueryRowContext(ctx, `SELECT id FROM habits WHERE id = $1 FOR UPDATE`, entry.HabitID).Scan(&id)
+	err = tx.QueryRowContext(ctx, `SELECT id FROM habits WHERE id = $1 AND user_id = $2 FOR UPDATE`, entry.HabitID, userID).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return HabitEntry{}, ErrHabitNotFound
 	}

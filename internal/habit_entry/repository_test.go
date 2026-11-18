@@ -17,6 +17,16 @@ import (
 
 var testDB *sql.DB
 
+const entryOwnerID = "22222222-3333-4444-5555-666666666666"
+
+func seedEntryOwner(t *testing.T) {
+	t.Helper()
+	_, err := testDB.ExecContext(t.Context(), `
+		INSERT INTO users (id, username, email) VALUES ($1, 'entry-owner', 'entry-owner@example.com')
+		ON CONFLICT (id) DO NOTHING`, entryOwnerID)
+	require.NoError(t, err)
+}
+
 func TestMain(m *testing.M) {
 	db, teardown, err := tests.Setup("../../migrations")
 	if err != nil {
@@ -39,15 +49,16 @@ func ctx(t *testing.T) context.Context {
 func TestRepositoryCreate(t *testing.T) {
 	// t.Parallel()
 	tests.CleanTables(t, testDB, "habit_entries", "habits")
+	seedEntryOwner(t)
 	repo := habit_entry.NewPostgresRepo(testDB)
 	ctx := context.Background()
 
 	habitID := "11111111-1111-1111-1111-111111111111"
 	_, err := testDB.ExecContext(ctx,
-		`INSERT INTO habits (id, name) VALUES ($1, $2)`, habitID, "Read")
+		`INSERT INTO habits (id, name, user_id) VALUES ($1, $2, $3)`, habitID, "Read", entryOwnerID)
 	require.NoError(t, err)
 
-	he, err := repo.Create(ctx, &habit_entry.HabitEntry{
+	he, err := repo.Create(ctx, entryOwnerID, &habit_entry.HabitEntry{
 		HabitID:  habitID,
 		Date:     "2006-01-02 15:04:05",
 		Duration: 15,
@@ -89,7 +100,7 @@ func TestRepositoryListHabitsWithStreak(t *testing.T) {
 	entriesRepo := habit_entry.NewPostgresRepo(testDB)
 	habitsRepo := habit.NewPostgresRepo(testDB, entriesRepo)
 	today := time.Now()
-	_, err = entriesRepo.Create(ctx, &habit_entry.HabitEntry{
+	_, err = entriesRepo.Create(ctx, userID, &habit_entry.HabitEntry{
 		HabitID: readID, Date: today.Format(time.DateOnly), Duration: 15,
 	})
 	require.NoError(t, err)
@@ -113,14 +124,14 @@ func TestRepositoryListHabitsWithStreak(t *testing.T) {
 
 	// Insert older entries out of order; the missing day ends the streak.
 	for _, offset := range []int{-3, -1} {
-		_, err := entriesRepo.Create(ctx, &habit_entry.HabitEntry{
+		_, err := entriesRepo.Create(ctx, userID, &habit_entry.HabitEntry{
 			HabitID: readID, Date: today.AddDate(0, 0, offset).Format(time.DateOnly), Duration: 15,
 		})
 		require.NoError(t, err)
 	}
 	// Study has no entry today; its streak through yesterday is still active.
 	for _, offset := range []int{-4, -2, -1} {
-		_, err := entriesRepo.Create(ctx, &habit_entry.HabitEntry{
+		_, err := entriesRepo.Create(ctx, userID, &habit_entry.HabitEntry{
 			HabitID: studyID, Date: today.AddDate(0, 0, offset).Format(time.DateOnly), Duration: 15,
 		})
 		require.NoError(t, err)
@@ -145,12 +156,13 @@ func TestRepositoryListHabitsWithStreak(t *testing.T) {
 
 func TestRepositoryListLegacyEntryWithoutDuration(t *testing.T) {
 	tests.CleanTables(t, testDB, "habit_entries", "habits")
+	seedEntryOwner(t)
 	repo := habit_entry.NewPostgresRepo(testDB)
 	ctx := ctx(t)
 
 	habitID := "11111111-1111-1111-1111-111111111111"
 	_, err := testDB.ExecContext(ctx,
-		`INSERT INTO habits (id, name) VALUES ($1, $2)`, habitID, "Read")
+		`INSERT INTO habits (id, name, user_id) VALUES ($1, $2, $3)`, habitID, "Read", entryOwnerID)
 	require.NoError(t, err)
 	_, err = testDB.ExecContext(ctx,
 		`INSERT INTO habit_entries (habit_id, date) VALUES ($1, $2)`, habitID, "2026-11-15")
@@ -169,21 +181,22 @@ func TestRepositoryListLegacyEntryWithoutDuration(t *testing.T) {
 
 func TestRepositoryCreateDuplicateEntry(t *testing.T) {
 	tests.CleanTables(t, testDB, "habit_entries", "habits")
+	seedEntryOwner(t)
 	repo := habit_entry.NewPostgresRepo(testDB)
 	ctx := ctx(t)
 
 	const habitID = "11111111-1111-1111-1111-111111111111"
 	const otherHabitID = "22222222-2222-2222-2222-222222222222"
 	_, err := testDB.ExecContext(ctx,
-		`INSERT INTO habits (id, name) VALUES ($1, 'Read'), ($2, 'Walk')`, habitID, otherHabitID)
+		`INSERT INTO habits (id, name, user_id) VALUES ($1, 'Read', $3), ($2, 'Walk', $3)`, habitID, otherHabitID, entryOwnerID)
 	require.NoError(t, err)
 
-	first, err := repo.Create(ctx, &habit_entry.HabitEntry{
+	first, err := repo.Create(ctx, entryOwnerID, &habit_entry.HabitEntry{
 		HabitID: habitID, Date: "2026-11-15", Duration: 15,
 	})
 	require.NoError(t, err)
 
-	duplicate, err := repo.Create(ctx, &habit_entry.HabitEntry{
+	duplicate, err := repo.Create(ctx, entryOwnerID, &habit_entry.HabitEntry{
 		HabitID: habitID, Date: "2026-11-15", Duration: 30,
 	})
 	require.ErrorIs(t, err, habit_entry.ErrConflict)
@@ -195,11 +208,11 @@ func TestRepositoryCreateDuplicateEntry(t *testing.T) {
 	require.Equal(t, first.ID, entries[0].ID)
 	require.Equal(t, 15, entries[0].Duration)
 
-	_, err = repo.Create(ctx, &habit_entry.HabitEntry{
+	_, err = repo.Create(ctx, entryOwnerID, &habit_entry.HabitEntry{
 		HabitID: habitID, Date: "2026-11-16", Duration: 30,
 	})
 	require.NoError(t, err, "the same habit may have an entry on another date")
-	_, err = repo.Create(ctx, &habit_entry.HabitEntry{
+	_, err = repo.Create(ctx, entryOwnerID, &habit_entry.HabitEntry{
 		HabitID: otherHabitID, Date: "2026-11-15", Duration: 30,
 	})
 	require.NoError(t, err, "another habit may have an entry on the same date")
@@ -207,6 +220,7 @@ func TestRepositoryCreateDuplicateEntry(t *testing.T) {
 
 func TestRepositoryCreateUnrelatedUniqueViolation(t *testing.T) {
 	tests.CleanTables(t, testDB, "habit_entries", "habits")
+	seedEntryOwner(t)
 	repo := habit_entry.NewPostgresRepo(testDB)
 	ctx := ctx(t)
 
@@ -220,14 +234,14 @@ func TestRepositoryCreateUnrelatedUniqueViolation(t *testing.T) {
 	})
 	const habitID = "11111111-1111-1111-1111-111111111111"
 	_, err = testDB.ExecContext(ctx,
-		`INSERT INTO habits (id, name) VALUES ($1, 'Read')`, habitID)
+		`INSERT INTO habits (id, name, user_id) VALUES ($1, 'Read', $2)`, habitID, entryOwnerID)
 	require.NoError(t, err)
-	_, err = repo.Create(ctx, &habit_entry.HabitEntry{
+	_, err = repo.Create(ctx, entryOwnerID, &habit_entry.HabitEntry{
 		HabitID: habitID, Date: "2026-11-15", Duration: 15,
 	})
 	require.NoError(t, err)
 
-	_, err = repo.Create(ctx, &habit_entry.HabitEntry{
+	_, err = repo.Create(ctx, entryOwnerID, &habit_entry.HabitEntry{
 		HabitID: habitID, Date: "2026-11-16", Duration: 15,
 	})
 	require.Error(t, err)
@@ -240,29 +254,31 @@ func TestRepositoryCreateUnrelatedUniqueViolation(t *testing.T) {
 
 func TestRepositoryCreateMissingHabit(t *testing.T) {
 	tests.CleanTables(t, testDB, "habit_entries", "habits")
+	seedEntryOwner(t)
 	repo := habit_entry.NewPostgresRepo(testDB)
 	ctx := ctx(t)
 	const habitID = "11111111-1111-1111-1111-111111111111"
 	entry := &habit_entry.HabitEntry{HabitID: habitID, Date: "2026-11-15", Duration: 30}
 
-	created, err := repo.Create(ctx, entry)
+	created, err := repo.Create(ctx, entryOwnerID, entry)
 	require.ErrorIs(t, err, habit_entry.ErrHabitNotFound)
 	require.Zero(t, created)
 
-	_, err = testDB.ExecContext(ctx, `INSERT INTO habits (id, name) VALUES ($1, 'Read')`, habitID)
+	_, err = testDB.ExecContext(ctx, `INSERT INTO habits (id, name, user_id) VALUES ($1, 'Read', $2)`, habitID, entryOwnerID)
 	require.NoError(t, err)
-	_, err = repo.Create(ctx, entry)
+	_, err = repo.Create(ctx, entryOwnerID, entry)
 	require.NoError(t, err)
 	_, err = testDB.ExecContext(ctx, `DELETE FROM habits WHERE id = $1`, habitID)
 	require.NoError(t, err)
 
-	created, err = repo.Create(ctx, entry)
+	created, err = repo.Create(ctx, entryOwnerID, entry)
 	require.ErrorIs(t, err, habit_entry.ErrHabitNotFound)
 	require.Zero(t, created)
 }
 
 func TestRepositoryCreateUnrelatedForeignKeyViolation(t *testing.T) {
 	tests.CleanTables(t, testDB, "habit_entries", "habits")
+	seedEntryOwner(t)
 	repo := habit_entry.NewPostgresRepo(testDB)
 	ctx := ctx(t)
 	_, err := testDB.ExecContext(ctx, `ALTER TABLE habit_entries
@@ -273,10 +289,10 @@ func TestRepositoryCreateUnrelatedForeignKeyViolation(t *testing.T) {
 		require.NoError(t, err)
 	})
 	const habitID = "11111111-1111-1111-1111-111111111111"
-	_, err = testDB.ExecContext(ctx, `INSERT INTO habits (id, name) VALUES ($1, 'Read')`, habitID)
+	_, err = testDB.ExecContext(ctx, `INSERT INTO habits (id, name, user_id) VALUES ($1, 'Read', $2)`, habitID, entryOwnerID)
 	require.NoError(t, err)
 
-	_, err = repo.Create(ctx, &habit_entry.HabitEntry{
+	_, err = repo.Create(ctx, entryOwnerID, &habit_entry.HabitEntry{
 		HabitID: habitID, Date: "2026-11-15", Duration: 30,
 	})
 	require.Error(t, err)
@@ -289,9 +305,10 @@ func TestRepositoryCreateUnrelatedForeignKeyViolation(t *testing.T) {
 
 func TestRepositoryHighestStreakBackdatedEntries(t *testing.T) {
 	tests.CleanTables(t, testDB, "habit_entries", "habits")
+	seedEntryOwner(t)
 	ctx := ctx(t)
 	const habitID = "11111111-1111-1111-1111-111111111111"
-	_, err := testDB.ExecContext(ctx, `INSERT INTO habits (id, name) VALUES ($1, 'Read')`, habitID)
+	_, err := testDB.ExecContext(ctx, `INSERT INTO habits (id, name, user_id) VALUES ($1, 'Read', $2)`, habitID, entryOwnerID)
 	require.NoError(t, err)
 	entries := habit_entry.NewPostgresRepo(testDB)
 	habits := habit.NewPostgresRepo(testDB, entries)
@@ -300,13 +317,13 @@ func TestRepositoryHighestStreakBackdatedEntries(t *testing.T) {
 	require.Zero(t, h.HighestStreak)
 	// A backdated entry bridges two runs; a later isolated entry preserves the record.
 	for i, date := range []string{"2020-01-01", "2020-01-02", "2020-01-04", "2020-01-05", "2020-01-03", "2020-02-01"} {
-		_, err := entries.Create(ctx, &habit_entry.HabitEntry{HabitID: habitID, Date: date, Duration: 15})
+		_, err := entries.Create(ctx, entryOwnerID, &habit_entry.HabitEntry{HabitID: habitID, Date: date, Duration: 15})
 		require.NoError(t, err)
 		h, err := habits.GetByID(ctx, habitID)
 		require.NoError(t, err)
 		require.Equal(t, []int{1, 2, 2, 2, 5, 5}[i], h.HighestStreak)
 	}
-	_, err = entries.Create(ctx, &habit_entry.HabitEntry{HabitID: habitID, Date: "2020-01-03", Duration: 15})
+	_, err = entries.Create(ctx, entryOwnerID, &habit_entry.HabitEntry{HabitID: habitID, Date: "2020-01-03", Duration: 15})
 	require.ErrorIs(t, err, habit_entry.ErrConflict)
 	h, err = habits.GetByID(ctx, habitID)
 	require.NoError(t, err)
@@ -315,9 +332,10 @@ func TestRepositoryHighestStreakBackdatedEntries(t *testing.T) {
 
 func TestRepositoryHighestStreakConcurrentEntries(t *testing.T) {
 	tests.CleanTables(t, testDB, "habit_entries", "habits")
+	seedEntryOwner(t)
 	ctx := ctx(t)
 	const habitID = "11111111-1111-1111-1111-111111111111"
-	_, err := testDB.ExecContext(ctx, `INSERT INTO habits (id, name) VALUES ($1, 'Read')`, habitID)
+	_, err := testDB.ExecContext(ctx, `INSERT INTO habits (id, name, user_id) VALUES ($1, 'Read', $2)`, habitID, entryOwnerID)
 	require.NoError(t, err)
 	repo := habit_entry.NewPostgresRepo(testDB)
 	start := make(chan struct{})
@@ -326,7 +344,7 @@ func TestRepositoryHighestStreakConcurrentEntries(t *testing.T) {
 		date := time.Date(2020, time.January, day, 0, 0, 0, 0, time.UTC).Format(time.DateOnly)
 		go func() {
 			<-start
-			_, err := repo.Create(ctx, &habit_entry.HabitEntry{HabitID: habitID, Date: date, Duration: 15})
+			_, err := repo.Create(ctx, entryOwnerID, &habit_entry.HabitEntry{HabitID: habitID, Date: date, Duration: 15})
 			results <- err
 		}()
 	}

@@ -11,7 +11,7 @@ import (
 
 func TestVersionedGreeting(t *testing.T) {
 	e := echo.New()
-	NewHabitHandler(nil, nil).Routes(e)
+	NewHabitHandler(nil, nil).Routes(e, testSession)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v2/", nil))
 	require.Equal(t, http.StatusOK, rec.Code)
@@ -20,7 +20,7 @@ func TestVersionedGreeting(t *testing.T) {
 
 func TestOldRoutesAreNotRegistered(t *testing.T) {
 	e := echo.New()
-	NewHabitHandler(nil, nil).Routes(e)
+	NewHabitHandler(nil, nil).Routes(e, testSession)
 	for _, route := range []struct{ method, path string }{
 		{http.MethodGet, "/"},
 		{http.MethodGet, "/habits"},

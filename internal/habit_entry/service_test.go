@@ -24,7 +24,7 @@ func (r *serviceRepository) ListByHabitIDs(context.Context, []string) (map[strin
 	return nil, nil
 }
 
-func (r *serviceRepository) Create(ctx context.Context, entry *habit_entry.HabitEntry) (habit_entry.HabitEntry, error) {
+func (r *serviceRepository) Create(ctx context.Context, _ string, entry *habit_entry.HabitEntry) (habit_entry.HabitEntry, error) {
 	r.ctx = ctx
 	r.created = entry
 	entry.ID = "saved-entry"
@@ -48,7 +48,7 @@ func TestServiceCreateNormalizesEntry(t *testing.T) {
 			repo := &serviceRepository{}
 			service := habit_entry.NewService(repo)
 			before := time.Now().Format(time.DateOnly)
-			entry, err := service.Create(t.Context(), &habit_entry.HabitEntry{
+			entry, err := service.Create(t.Context(), entryOwnerID, &habit_entry.HabitEntry{
 				HabitID:  " 11111111-ABCD-ABCD-ABCD-111111111111 ",
 				Date:     tt.date,
 				Duration: tt.duration,
@@ -102,7 +102,7 @@ func TestServiceCreateRejectsInvalidEntry(t *testing.T) {
 				HabitID: tt.habitID, Date: tt.date, Duration: tt.duration,
 			}
 			original := input
-			entry, err := habit_entry.NewService(repo).Create(t.Context(), &input)
+			entry, err := habit_entry.NewService(repo).Create(t.Context(), entryOwnerID, &input)
 			var validationErr *habit_entry.ValidationError
 			require.ErrorAs(t, err, &validationErr)
 			require.Equal(t, tt.field, validationErr.Field)
@@ -116,7 +116,7 @@ func TestServiceCreateRejectsInvalidEntry(t *testing.T) {
 func TestServiceCreatePreservesRepositoryError(t *testing.T) {
 	wantErr := errors.New("database unavailable")
 	repo := &serviceRepository{err: wantErr}
-	_, err := habit_entry.NewService(repo).Create(t.Context(), &habit_entry.HabitEntry{
+	_, err := habit_entry.NewService(repo).Create(t.Context(), entryOwnerID, &habit_entry.HabitEntry{
 		HabitID: "11111111-1111-1111-1111-111111111111", Date: "2026-11-15", Duration: 30,
 	})
 	require.ErrorIs(t, err, wantErr)
