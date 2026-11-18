@@ -52,12 +52,13 @@ func toHabitResponse(hb habit.Habit) habitResponseDTO {
 	}
 
 	return habitResponseDTO{
-		ID:          hb.ID,
-		Name:        hb.Name,
-		Description: hb.Description,
-		CreatedAt:   hb.CreatedAt,
-		Entries:     entries,
-		Streak:      hb.Streak,
+		ID:            hb.ID,
+		Name:          hb.Name,
+		Description:   hb.Description,
+		CreatedAt:     hb.CreatedAt,
+		Entries:       entries,
+		Streak:        hb.Streak,
+		HighestStreak: hb.HighestStreak,
 	}
 }
 

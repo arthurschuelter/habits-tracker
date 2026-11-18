@@ -84,8 +84,24 @@ func (r *PostgresRepo) Create(ctx context.Context, entry *HabitEntry) (HabitEntr
 		VALUES ($1, $2, $3)
 		RETURNING id, habit_id, to_char(date, 'YYYY-MM-DD'), duration`
 
+	// Serialize entry writes for a habit before reading its history. The entry and
+	// cached highest streak must commit together, including backdated entries.
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return HabitEntry{}, fmt.Errorf("begin entry transaction: %w", err)
+	}
+	defer tx.Rollback()
+	var id string
+	err = tx.QueryRowContext(ctx, `SELECT id FROM habits WHERE id = $1 FOR UPDATE`, entry.HabitID).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return HabitEntry{}, ErrHabitNotFound
+	}
+	if err != nil {
+		return HabitEntry{}, fmt.Errorf("lock entry habit: %w", err)
+	}
+
 	var out HabitEntry
-	err := r.db.QueryRowContext(ctx, q, entry.HabitID, entry.Date, entry.Duration).
+	err = tx.QueryRowContext(ctx, q, entry.HabitID, entry.Date, entry.Duration).
 		Scan(&out.ID, &out.HabitID, &out.Date, &out.Duration)
 	if err != nil {
 		var pgErr *pq.Error
@@ -98,6 +114,22 @@ func (r *PostgresRepo) Create(ctx context.Context, entry *HabitEntry) (HabitEntr
 			}
 		}
 		return HabitEntry{}, fmt.Errorf("create habit entry: %w", err)
+	}
+	// Subtracting the row number gives the same date for each consecutive run.
+	_, err = tx.ExecContext(ctx, `
+		UPDATE habits SET highest_streak = (
+			SELECT COALESCE(MAX(length), 0) FROM (
+				SELECT COUNT(*) AS length FROM (
+					SELECT date - (ROW_NUMBER() OVER (ORDER BY date))::int AS run
+					FROM habit_entries WHERE habit_id = $1
+				) dates GROUP BY run
+			) runs
+		) WHERE id = $1`, entry.HabitID)
+	if err != nil {
+		return HabitEntry{}, fmt.Errorf("update highest streak: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return HabitEntry{}, fmt.Errorf("commit habit entry: %w", err)
 	}
 	return out, nil
 }

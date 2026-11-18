@@ -26,7 +26,7 @@ func NewPostgresRepo(db *sql.DB, entries EntryLister) *PostgresRepo {
 
 func (r *PostgresRepo) GetByID(ctx context.Context, habitID string) (*Habit, error) {
 	const q = `
-		SELECT id, user_id, name, description, created_at
+		SELECT id, user_id, name, description, created_at, highest_streak
 		FROM habits 
 		WHERE id = $1`
 
@@ -34,7 +34,7 @@ func (r *PostgresRepo) GetByID(ctx context.Context, habitID string) (*Habit, err
 	var userID sql.NullString
 	err := r.db.
 		QueryRowContext(ctx, q, habitID).
-		Scan(&h.ID, &userID, &h.Name, &h.Description, &h.CreatedAt)
+		Scan(&h.ID, &userID, &h.Name, &h.Description, &h.CreatedAt, &h.HighestStreak)
 
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
@@ -50,7 +50,7 @@ func (r *PostgresRepo) GetByID(ctx context.Context, habitID string) (*Habit, err
 
 func (r *PostgresRepo) ListByUserID(ctx context.Context, userID string) ([]Habit, error) {
 	const q = `
-		SELECT id, name, description, created_at
+		SELECT id, name, description, created_at, highest_streak
 		FROM habits 
 		WHERE user_id = $1`
 
@@ -65,7 +65,7 @@ func (r *PostgresRepo) ListByUserID(ctx context.Context, userID string) ([]Habit
 	ids := []string{}
 	for rows.Next() {
 		var h Habit
-		if err := rows.Scan(&h.ID, &h.Name, &h.Description, &h.CreatedAt); err != nil {
+		if err := rows.Scan(&h.ID, &h.Name, &h.Description, &h.CreatedAt, &h.HighestStreak); err != nil {
 			return nil, fmt.Errorf("scan habit: %w", err)
 		}
 		habits = append(habits, h)

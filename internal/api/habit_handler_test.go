@@ -52,7 +52,7 @@ func TestGetHabitsIncludesEntries(t *testing.T) {
 						{ID: "entry-1", HabitID: "read", Date: "2026-11-15", Duration: 20},
 						{ID: "entry-2", HabitID: "read", Date: "2026-11-14", Duration: 30},
 					},
-					Streak: 2,
+					Streak: 2, HighestStreak: 5,
 				},
 				{ID: "study", Name: "Study", Description: "Programming"},
 				{ID: "walk", Name: "Walk", Entries: []habit_entry.HabitEntry{}},
@@ -61,9 +61,9 @@ func TestGetHabitsIncludesEntries(t *testing.T) {
 				{"id":"read","name":"Read","description":"Read daily","created_at":"2026-11-17T12:34:56.123456Z","entries":[
 					{"id":"entry-1","habit_id":"read","date":"2026-11-15","duration":20},
 					{"id":"entry-2","habit_id":"read","date":"2026-11-14","duration":30}
-				],"streak":2},
-				{"id":"study","name":"Study","description":"Programming","created_at":null,"entries":[],"streak":0},
-				{"id":"walk","name":"Walk","description":"","created_at":null,"entries":[],"streak":0}
+				],"streak":2,"highest_streak":5},
+				{"id":"study","name":"Study","description":"Programming","created_at":null,"entries":[],"streak":0,"highest_streak":0},
+				{"id":"walk","name":"Walk","description":"","created_at":null,"entries":[],"streak":0,"highest_streak":0}
 			]`,
 		},
 		{name: "no habits", want: `[]`},

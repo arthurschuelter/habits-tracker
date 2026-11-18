@@ -11,13 +11,14 @@ import (
 var ErrNotFound = errors.New("habit not found")
 
 type Habit struct {
-	ID          string
-	Name        string
-	Description string
-	UserID      string
-	CreatedAt   *time.Time
-	Entries     []habit_entry.HabitEntry
-	Streak      int
+	ID            string
+	Name          string
+	Description   string
+	UserID        string
+	CreatedAt     *time.Time
+	Entries       []habit_entry.HabitEntry
+	HighestStreak int
+	Streak        int
 }
 
 type Repository interface {

@@ -80,6 +80,10 @@ definitions:
         items:
           $ref: '#/definitions/api.habitEntryResponseDTO'
         type: array
+      highest_streak:
+        example: 7
+        minimum: 0
+        type: integer
       id:
         example: 11111111-1111-1111-1111-111111111111
         format: uuid

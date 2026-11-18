@@ -99,6 +99,7 @@ func TestRepositoryListHabitsWithStreak(t *testing.T) {
 	require.Len(t, habits, 2)
 	for _, h := range habits {
 		if h.ID == readID {
+			require.Equal(t, 1, h.HighestStreak)
 			require.Equal(t, 1, h.Streak, "today's persisted entry must count toward the streak")
 			require.Len(t, h.Entries, 1)
 			require.Equal(t, today.Format(time.DateOnly), h.Entries[0].Date)
@@ -106,6 +107,7 @@ func TestRepositoryListHabitsWithStreak(t *testing.T) {
 			require.Equal(t, studyID, h.ID)
 			require.Empty(t, h.Entries)
 			require.Zero(t, h.Streak)
+			require.Zero(t, h.HighestStreak)
 		}
 	}
 
@@ -283,4 +285,56 @@ func TestRepositoryCreateUnrelatedForeignKeyViolation(t *testing.T) {
 	require.ErrorAs(t, err, &pgErr)
 	require.Equal(t, pq.ErrorCode("23503"), pgErr.Code)
 	require.Equal(t, "habit_entries_test_id_fkey", pgErr.Constraint)
+}
+
+func TestRepositoryHighestStreakBackdatedEntries(t *testing.T) {
+	tests.CleanTables(t, testDB, "habit_entries", "habits")
+	ctx := ctx(t)
+	const habitID = "11111111-1111-1111-1111-111111111111"
+	_, err := testDB.ExecContext(ctx, `INSERT INTO habits (id, name) VALUES ($1, 'Read')`, habitID)
+	require.NoError(t, err)
+	entries := habit_entry.NewPostgresRepo(testDB)
+	habits := habit.NewPostgresRepo(testDB, entries)
+	h, err := habits.GetByID(ctx, habitID)
+	require.NoError(t, err)
+	require.Zero(t, h.HighestStreak)
+	// A backdated entry bridges two runs; a later isolated entry preserves the record.
+	for i, date := range []string{"2020-01-01", "2020-01-02", "2020-01-04", "2020-01-05", "2020-01-03", "2020-02-01"} {
+		_, err := entries.Create(ctx, &habit_entry.HabitEntry{HabitID: habitID, Date: date, Duration: 15})
+		require.NoError(t, err)
+		h, err := habits.GetByID(ctx, habitID)
+		require.NoError(t, err)
+		require.Equal(t, []int{1, 2, 2, 2, 5, 5}[i], h.HighestStreak)
+	}
+	_, err = entries.Create(ctx, &habit_entry.HabitEntry{HabitID: habitID, Date: "2020-01-03", Duration: 15})
+	require.ErrorIs(t, err, habit_entry.ErrConflict)
+	h, err = habits.GetByID(ctx, habitID)
+	require.NoError(t, err)
+	require.Equal(t, 5, h.HighestStreak)
+}
+
+func TestRepositoryHighestStreakConcurrentEntries(t *testing.T) {
+	tests.CleanTables(t, testDB, "habit_entries", "habits")
+	ctx := ctx(t)
+	const habitID = "11111111-1111-1111-1111-111111111111"
+	_, err := testDB.ExecContext(ctx, `INSERT INTO habits (id, name) VALUES ($1, 'Read')`, habitID)
+	require.NoError(t, err)
+	repo := habit_entry.NewPostgresRepo(testDB)
+	start := make(chan struct{})
+	results := make(chan error, 5)
+	for day := 1; day <= 5; day++ {
+		date := time.Date(2020, time.January, day, 0, 0, 0, 0, time.UTC).Format(time.DateOnly)
+		go func() {
+			<-start
+			_, err := repo.Create(ctx, &habit_entry.HabitEntry{HabitID: habitID, Date: date, Duration: 15})
+			results <- err
+		}()
+	}
+	close(start)
+	for range 5 {
+		require.NoError(t, <-results)
+	}
+	h, err := habit.NewPostgresRepo(testDB, repo).GetByID(ctx, habitID)
+	require.NoError(t, err)
+	require.Equal(t, 5, h.HighestStreak)
 }

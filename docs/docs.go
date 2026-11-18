@@ -268,6 +268,11 @@ const docTemplate = `{
                         "$ref": "#/definitions/api.habitEntryResponseDTO"
                     }
                 },
+                "highest_streak": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 7
+                },
                 "id": {
                     "type": "string",
                     "format": "uuid",
