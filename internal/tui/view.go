@@ -7,9 +7,17 @@ import (
 )
 
 func (m Model) View() tea.View {
+	var view tea.View
 	if m.screen == screenFetchHabits {
-		return m.fetchHabitsView()
+		view = m.fetchHabitsView()
+	} else {
+		view = m.standardView()
 	}
+	view.AltScreen = true
+	return view
+}
+
+func (m Model) standardView() tea.View {
 	title, help, content := mainMenuTitle, mainMenuHelp, ""
 	switch m.screen {
 	case screenTrackHabit:

@@ -114,3 +114,20 @@ func TestActivityGridDatesAndDurations(t *testing.T) {
 	require.Contains(t, grid, "1/30 days · 90 min")
 	require.NotContains(t, grid, "[")
 }
+
+func TestDashboardReturnKeepsMenuInAlternateScreen(t *testing.T) {
+	for _, back := range []rune{'b', tea.KeyEscape} {
+		m := New(nil)
+		m, _ = updateModel(t, m, tea.WindowSizeMsg{Width: 80, Height: 24})
+		require.True(t, m.View().AltScreen)
+		m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
+		m, _ = updateModel(t, m, habitsFetchedMsg{habits: []habitclient.Habit{{Name: "Read"}}})
+		require.Equal(t, screenFetchHabits, m.screen)
+		require.True(t, m.View().AltScreen)
+		require.Equal(t, m.height, lipgloss.Height(m.View().Content))
+		m, _ = updateModel(t, m, tea.KeyPressMsg{Code: back})
+		require.Equal(t, screenMain, m.screen)
+		require.True(t, m.View().AltScreen, "returning must keep the same terminal buffer")
+		require.True(t, strings.HasPrefix(ansi.Strip(m.View().Content), mainMenuTitle+"\n"))
+	}
+}
