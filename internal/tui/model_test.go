@@ -54,7 +54,7 @@ func TestMenuNavigation(t *testing.T) {
 	if m.cursor != 1 {
 		t.Fatalf("cursor = %d, want 1", m.cursor)
 	}
-	if !strings.Contains(m.View().Content, "> List Habits") {
+	if !strings.Contains(m.View().Content, "> Manage habits") {
 		t.Fatal("view does not show the selected menu option")
 	}
 }
@@ -68,7 +68,7 @@ func TestFetchCompletesAfterReturningToMenu(t *testing.T) {
 	}))
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyDown})
 	m, fetch := updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
-	if m.screen != screenListHabits || !m.loading || fetch == nil || calls != 0 {
+	if m.screen != screenManageHabits || !m.loading || fetch == nil || calls != 0 {
 		t.Fatal("opening the list should schedule a fetch without performing it in Update")
 	}
 	if !strings.Contains(m.View().Content, "Fetching habits...") {
@@ -87,7 +87,7 @@ func TestFetchCompletesAfterReturningToMenu(t *testing.T) {
 		t.Fatal("fetch completion should update shared data while staying on the menu")
 	}
 	m, refresh := updateModel(t, m, tea.KeyPressMsg{Code: tea.KeySpace})
-	if m.screen != screenListHabits || refresh == nil {
+	if m.screen != screenManageHabits || refresh == nil {
 		t.Fatal("reopening the list with space should schedule a refresh")
 	}
 	view := m.View().Content
@@ -103,7 +103,7 @@ func TestRefreshFailureAndRetry(t *testing.T) {
 	m := newMainModel(habitListerFunc(func(context.Context) ([]habitclient.Habit, error) {
 		return nil, fetchErr
 	}))
-	m.screen = screenListHabits
+	m.screen = screenManageHabits
 	want := []habitclient.Habit{{ID: "habit-1", Name: "Read"}}
 	m.habitsList = want
 	m, fetch := updateModel(t, m, tea.KeyPressMsg{Code: 'r'})
@@ -132,7 +132,7 @@ func TestRefreshFailureAndRetry(t *testing.T) {
 }
 
 func TestQuitFromBrowsingScreens(t *testing.T) {
-	for _, screen := range []screen{screenMain, screenListHabits, screenFetchHabits} {
+	for _, screen := range []screen{screenMain, screenManageHabits, screenFetchHabits} {
 		for _, key := range []tea.KeyPressMsg{{Code: 'q'}, {Code: 'c', Mod: tea.ModCtrl}} {
 			m := newMainModel(nil)
 			m.screen = screen

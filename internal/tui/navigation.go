@@ -7,7 +7,7 @@ type screen int
 const (
 	screenMain screen = iota
 	screenFetchHabits
-	screenListHabits
+	screenManageHabits
 	screenTrackHabit
 	screenCreateNewHabit
 	screenLogin
@@ -38,7 +38,7 @@ func (m Model) navigateTo(next screen) (Model, tea.Cmd) {
 		cmd := m.form.focusField(0)
 		return m, cmd
 	}
-	if next == screenListHabits {
+	if next == screenManageHabits {
 		return m.refreshHabits()
 	}
 	return m, nil

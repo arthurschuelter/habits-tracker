@@ -47,7 +47,7 @@ func New(authenticate func(context.Context, string, string) (HabitClient, error)
 		height:       24,
 		menuOptions: []string{
 			"Fetch habits",
-			"List Habits",
+			"Manage habits",
 			"Add habit entry",
 			"Create new habit",
 		},
@@ -98,7 +98,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.form.saving = false
 		m.form.err = result.err
 		if result.err == nil {
-			return m.navigateTo(screenListHabits)
+			return m.navigateTo(screenManageHabits)
 		}
 		cmd := m.form.focusField(m.form.focus)
 		return m, cmd
@@ -139,7 +139,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch m.screen {
-	case screenListHabits:
+	case screenManageHabits:
 		return m.updateListHabits(key)
 	case screenMain:
 		return m.updateMain(key)

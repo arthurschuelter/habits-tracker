@@ -26,7 +26,7 @@ func (m Model) standardView() tea.View {
 		title, help, content = createHabitEntryTitle, createHabitEntryHelp, m.createHabitEntryView()
 	case screenCreateNewHabit:
 		title, help, content = createHabitTitle, createHabitHelp, m.createHabitView()
-	case screenListHabits:
+	case screenManageHabits:
 		title, help, content = habitsListTitle, habitsListHelp, m.listHabitsView()
 	case screenMain:
 		content = m.mainMenuView()

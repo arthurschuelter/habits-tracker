@@ -28,7 +28,7 @@ func (m Model) updateMain(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m.navigateTo(screenFetchHabits)
 		}
 		if m.cursor == 1 {
-			return m.navigateTo(screenListHabits)
+			return m.navigateTo(screenManageHabits)
 		}
 		if m.cursor == 2 {
 			return m.navigateTo(screenTrackHabit)

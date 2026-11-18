@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	habitsListTitle = "Active Habits"
+	habitsListTitle = "Manage Habits"
 	habitsListHelp  = "\nr: refresh • b/esc: return • q: exit"
 )
 

@@ -66,7 +66,7 @@ func TestCreateHabitSaveFailureAndRetry(t *testing.T) {
 	}
 	m, retry := updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	m, refresh := updateModel(t, m, retry())
-	if m.screen != screenListHabits || refresh == nil || calls != 2 {
+	if m.screen != screenManageHabits || refresh == nil || calls != 2 {
 		t.Fatal("successful save should open and refresh the list")
 	}
 	m, _ = updateModel(t, m, refresh())
