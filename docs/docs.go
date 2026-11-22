@@ -118,6 +118,19 @@ const docTemplate = `{
                     "Habits"
                 ],
                 "summary": "List habits",
+                "parameters": [
+                    {
+                        "enum": [
+                            "false",
+                            "true",
+                            "all"
+                        ],
+                        "type": "string",
+                        "description": "Archive filter: false (default) returns active habits, true returns archived habits, all returns both",
+                        "name": "archived",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -126,6 +139,12 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/api.habitResponseDTO"
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid archived filter",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
                         }
                     },
                     "401": {
@@ -342,6 +361,10 @@ const docTemplate = `{
         "api.habitResponseDTO": {
             "type": "object",
             "properties": {
+                "archived": {
+                    "type": "boolean",
+                    "example": false
+                },
                 "created_at": {
                     "type": "string",
                     "format": "date-time",

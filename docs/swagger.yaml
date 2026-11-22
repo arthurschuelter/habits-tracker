@@ -61,6 +61,9 @@ definitions:
     type: object
   api.habitResponseDTO:
     properties:
+      archived:
+        example: false
+        type: boolean
       created_at:
         example: "2026-11-17T12:34:56Z"
         format: date-time
@@ -177,6 +180,16 @@ paths:
       description: Lists habits for the authenticated user. Entries are arrays (empty
         when none exist). Current streaks count consecutive recorded dates ending
         today or yesterday in the server's local time.
+      parameters:
+      - description: 'Archive filter: false (default) returns active habits, true
+          returns archived habits, all returns both'
+        enum:
+        - "false"
+        - "true"
+        - all
+        in: query
+        name: archived
+        type: string
       produces:
       - application/json
       responses:
@@ -186,6 +199,10 @@ paths:
             items:
               $ref: '#/definitions/api.habitResponseDTO'
             type: array
+        "400":
+          description: Invalid archived filter
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
         "401":
           description: Authentication required
           schema:
