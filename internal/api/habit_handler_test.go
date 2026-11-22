@@ -36,13 +36,15 @@ func authenticatedRequest(method, path string, body io.Reader) *http.Request {
 type createRepository struct {
 	created *habit.Habit
 	habits  []habit.Habit
+	filter  habit.ArchiveFilter
 }
 
 func (r *createRepository) GetByID(context.Context, string) (*habit.Habit, error) {
 	return nil, habit.ErrNotFound
 }
 
-func (r *createRepository) ListByUserID(context.Context, string) ([]habit.Habit, error) {
+func (r *createRepository) ListByUserID(_ context.Context, _ string, filter habit.ArchiveFilter) ([]habit.Habit, error) {
+	r.filter = filter
 	return r.habits, nil
 }
 
@@ -70,16 +72,16 @@ func TestGetHabitsIncludesEntries(t *testing.T) {
 					},
 					Streak: 2, HighestStreak: 5,
 				},
-				{ID: "study", Name: "Study", Description: "Programming"},
+				{ID: "study", Name: "Study", Description: "Programming", Archived: true},
 				{ID: "walk", Name: "Walk", Entries: []habit_entry.HabitEntry{}},
 			},
 			want: `[
 				{"id":"read","name":"Read","description":"Read daily","created_at":"2026-11-17T12:34:56.123456Z","entries":[
 					{"id":"entry-1","habit_id":"read","date":"2026-11-15","duration":20},
 					{"id":"entry-2","habit_id":"read","date":"2026-11-14","duration":30}
-				],"streak":2,"highest_streak":5},
-				{"id":"study","name":"Study","description":"Programming","created_at":null,"entries":[],"streak":0,"highest_streak":0},
-				{"id":"walk","name":"Walk","description":"","created_at":null,"entries":[],"streak":0,"highest_streak":0}
+				],"streak":2,"highest_streak":5,"archived":false},
+				{"id":"study","name":"Study","description":"Programming","created_at":null,"entries":[],"streak":0,"highest_streak":0,"archived":true},
+				{"id":"walk","name":"Walk","description":"","created_at":null,"entries":[],"streak":0,"highest_streak":0,"archived":false}
 			]`,
 		},
 		{name: "no habits", want: `[]`},
@@ -157,4 +159,41 @@ func TestCreateHabitFromClient(t *testing.T) {
 	require.Equal(t, "Read", repo.created.Name)
 	require.Equal(t, "20 minutes", repo.created.Description)
 	require.Equal(t, testUserID, repo.created.UserID, "created habits must belong to the habit-listing user")
+}
+
+func TestGetHabitsArchiveFilter(t *testing.T) {
+	for _, tt := range []struct {
+		query      string
+		wantStatus int
+		wantFilter habit.ArchiveFilter
+	}{
+		{query: "", wantStatus: http.StatusOK, wantFilter: habit.ActiveOnly},
+		{query: "?archived=false", wantStatus: http.StatusOK, wantFilter: habit.ActiveOnly},
+		{query: "?archived=true", wantStatus: http.StatusOK, wantFilter: habit.ArchivedOnly},
+		{query: "?archived=all", wantStatus: http.StatusOK, wantFilter: habit.AnyArchiveState},
+		{query: "?archived=yes", wantStatus: http.StatusBadRequest},
+		{query: "?archived=TRUE", wantStatus: http.StatusBadRequest},
+	} {
+		t.Run(tt.query, func(t *testing.T) {
+			e := echo.New()
+			repo := &createRepository{filter: -1}
+			NewHabitHandler(habit.NewService(repo), nil).Routes(e, testSession)
+
+			rec := httptest.NewRecorder()
+			e.ServeHTTP(rec, authenticatedRequest(http.MethodGet, "/api/v2/habits"+tt.query, nil))
+
+			if rec.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d; body %s", rec.Code, tt.wantStatus, rec.Body.String())
+			}
+			if tt.wantStatus != http.StatusOK {
+				if repo.filter != -1 {
+					t.Fatalf("repository called with filter %d for rejected query", repo.filter)
+				}
+				return
+			}
+			if repo.filter != tt.wantFilter {
+				t.Fatalf("filter = %d, want %d", repo.filter, tt.wantFilter)
+			}
+		})
+	}
 }

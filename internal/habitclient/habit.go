@@ -10,6 +10,7 @@ type Habit struct {
 	CreatedAt     *time.Time   `json:"created_at"`
 	Entries       []HabitEntry `json:"entries"`
 	Streak        int          `json:"streak"`
+	Archived      bool         `json:"archived"`
 }
 
 type HabitEntry struct {

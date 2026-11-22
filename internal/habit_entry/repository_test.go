@@ -105,7 +105,7 @@ func TestRepositoryListHabitsWithStreak(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	habits, err := habitsRepo.ListByUserID(ctx, userID)
+	habits, err := habitsRepo.ListByUserID(ctx, userID, habit.ActiveOnly)
 	require.NoError(t, err)
 	require.Len(t, habits, 2)
 	for _, h := range habits {
@@ -136,7 +136,7 @@ func TestRepositoryListHabitsWithStreak(t *testing.T) {
 		})
 		require.NoError(t, err)
 	}
-	habits, err = habitsRepo.ListByUserID(ctx, userID)
+	habits, err = habitsRepo.ListByUserID(ctx, userID, habit.ActiveOnly)
 	require.NoError(t, err)
 	require.Len(t, habits, 2)
 	for _, h := range habits {

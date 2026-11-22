@@ -10,6 +10,7 @@ type habitResponseDTO struct {
 	Entries       []habitEntryResponseDTO `json:"entries"`
 	HighestStreak int                     `json:"highest_streak" minimum:"0" example:"7"`
 	Streak        int                     `json:"streak" minimum:"0" example:"2"`
+	Archived      bool                    `json:"archived" example:"false"`
 }
 
 type habitEntryResponseDTO struct {

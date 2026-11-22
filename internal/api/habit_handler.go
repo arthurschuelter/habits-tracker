@@ -58,6 +58,7 @@ func toHabitResponse(hb habit.Habit) habitResponseDTO {
 		Entries:       entries,
 		Streak:        hb.Streak,
 		HighestStreak: hb.HighestStreak,
+		Archived:      hb.Archived,
 	}
 }
 
@@ -66,7 +67,9 @@ func toHabitResponse(hb habit.Habit) habitResponseDTO {
 // @Description Lists habits for the authenticated user. Entries are arrays (empty when none exist). Current streaks count consecutive recorded dates ending today or yesterday in the server's local time.
 // @Tags Habits
 // @Produce json
+// @Param archived query string false "Archive filter: false (default) returns active habits, true returns archived habits, all returns both" Enums(false, true, all)
 // @Success 200 {array} habitResponseDTO
+// @Failure 400 {object} errorResponseDTO "Invalid archived filter"
 // @Security BearerAuth
 // @Failure 401 {object} errorResponseDTO "Authentication required"
 // @Failure 500 {object} errorResponseDTO "Unexpected server error"
@@ -74,7 +77,12 @@ func toHabitResponse(hb habit.Habit) habitResponseDTO {
 func (h *HabitHandler) GetHabits(ctx *echo.Context) error {
 	userID := authenticatedUser(ctx)
 
-	habits, err := h.habits.List(ctx.Request().Context(), userID)
+	filter, err := parseArchiveFilter(ctx.QueryParam("archived"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	habits, err := h.habits.List(ctx.Request().Context(), userID, filter)
 	if err != nil {
 		return fmt.Errorf("list habits for user %s: %w", userID, err)
 	}
@@ -85,6 +93,19 @@ func (h *HabitHandler) GetHabits(ctx *echo.Context) error {
 	}
 
 	return ctx.JSON(http.StatusOK, out)
+}
+
+func parseArchiveFilter(value string) (habit.ArchiveFilter, error) {
+	switch value {
+	case "", "false":
+		return habit.ActiveOnly, nil
+	case "true":
+		return habit.ArchivedOnly, nil
+	case "all":
+		return habit.AnyArchiveState, nil
+	default:
+		return 0, errors.New("archived must be one of: false, true, all")
+	}
 }
 
 // CreateHabits creates a habit.
