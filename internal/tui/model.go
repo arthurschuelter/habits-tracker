@@ -33,6 +33,7 @@ type Model struct {
 	dashboard    habitsDashboard
 	detail       habitDetail
 	manage       manageHabits
+	today        todayScreen
 	notice       string
 	cursor       int
 	width        int
@@ -91,7 +92,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.entryForm.saving = false
 		m.entryForm.err = result.err
 		if result.err == nil {
-			m, cmd := m.navigateTo(screenMain)
+			// Let Today select the next habit still to log.
+			m.today = todayScreen{}
+			m, cmd := m.navigateTo(m.entryForm.returnTo)
 			m.notice = "Habit successfully logged!"
 			return m, cmd
 		}
@@ -165,6 +168,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if m.screen == screenManageHabits {
 		return m.updateManageHabits(msg)
+	}
+	if m.screen == screenToday {
+		return m.updateToday(msg)
 	}
 	if !isKey {
 		return m, nil

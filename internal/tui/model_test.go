@@ -63,10 +63,10 @@ func TestMenuNavigation(t *testing.T) {
 		t.Fatalf("cursor = %d, want last option", m.cursor)
 	}
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: 'k'})
-	if m.cursor != 1 {
-		t.Fatalf("cursor = %d, want 1", m.cursor)
+	if m.cursor != len(m.menuOptions)-2 {
+		t.Fatalf("cursor = %d, want second-to-last option", m.cursor)
 	}
-	if !strings.Contains(m.View().Content, "> Habit activity") {
+	if !strings.Contains(m.View().Content, "> "+m.menuOptions[m.cursor].label) {
 		t.Fatal("view does not show the selected menu option")
 	}
 	if strings.Contains(m.View().Content, "Create new habit") {
@@ -92,9 +92,7 @@ func TestFetchCompletesAfterReturningToMenu(t *testing.T) {
 		calls++
 		return want, nil
 	}))
-	for range 2 {
-		m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyDown})
-	}
+	m = selectMenuOption(t, m, "Manage habits")
 	m, fetch := updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	if m.screen != screenManageHabits || !m.manage.loading || fetch == nil || calls != 0 {
 		t.Fatal("opening the list should schedule a fetch without performing it in Update")
@@ -161,7 +159,7 @@ func TestRefreshFailureAndRetry(t *testing.T) {
 }
 
 func TestQuitFromBrowsingScreens(t *testing.T) {
-	for _, screen := range []screen{screenMain, screenManageHabits, screenHabitActivity, screenHabitDetail} {
+	for _, screen := range []screen{screenMain, screenManageHabits, screenHabitActivity, screenHabitDetail, screenToday} {
 		for _, key := range []tea.KeyPressMsg{{Code: 'q'}, {Code: 'c', Mod: tea.ModCtrl}} {
 			m := newMainModel(nil)
 			m.screen = screen
@@ -174,6 +172,22 @@ func TestQuitFromBrowsingScreens(t *testing.T) {
 			}
 		}
 	}
+}
+
+// selectMenuOption moves the main menu cursor to label with key presses,
+// keeping tests independent of the menu order.
+func selectMenuOption(t *testing.T, m Model, label string) Model {
+	t.Helper()
+	for i, option := range m.menuOptions {
+		if option.label == label {
+			for m.cursor < i {
+				m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyDown})
+			}
+			return m
+		}
+	}
+	t.Fatalf("main menu has no %q option", label)
+	return m
 }
 
 func newMainModel(client HabitClient) Model {

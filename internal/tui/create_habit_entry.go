@@ -38,6 +38,7 @@ type habitEntryForm struct {
 	date     textinput.Model
 	duration textinput.Model
 	focus    int
+	returnTo screen // screen shown after cancelling or saving; the main menu by default.
 	saving   bool
 	err      error
 }
@@ -93,6 +94,16 @@ func (f *habitEntryForm) setHabits(habits []habitclient.Habit) tea.Cmd {
 	cmd := f.habits.SetItems(items)
 	f.habits.Select(index)
 	return cmd
+}
+
+// selectHabit chooses a habit by ID; later refreshes keep it selected.
+func (f *habitEntryForm) selectHabit(id string) {
+	for i, item := range f.habits.Items() {
+		if entry, ok := item.(habitEntryItem); ok && entry.habit.ID == id {
+			f.habits.Select(i)
+			return
+		}
+	}
 }
 
 // entryDate returns the date the entry will be saved for; blank means today.
@@ -162,7 +173,7 @@ func (m Model) updateCreateHabitEntry(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+s":
 			return m.submitHabitEntry()
 		case "esc":
-			return m.navigateTo(screenMain)
+			return m.navigateTo(m.entryForm.returnTo)
 		case "tab":
 			cmd := m.entryForm.focusField((m.entryForm.focus + 1) % 4)
 			return m, cmd

@@ -34,6 +34,8 @@ func (m Model) standardView() tea.View {
 			help = renameHelp
 		}
 		title, content = habitsListTitle, m.manageHabitsView()
+	case screenToday:
+		title, help, content = todayTitle, todayHelp, m.todayView()
 	case screenMain:
 		content = m.mainMenuView()
 	}

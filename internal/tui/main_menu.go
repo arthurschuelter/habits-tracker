@@ -14,6 +14,7 @@ type menuOption struct {
 
 var mainMenuOptions = []menuOption{
 	{"Log an entry", screenTrackHabit},
+	{"Today", screenToday},
 	{"Habit activity", screenHabitActivity},
 	{"Manage habits", screenManageHabits},
 }
