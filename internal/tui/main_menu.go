@@ -6,6 +6,18 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// menuOption ties a main menu label to the screen it opens.
+type menuOption struct {
+	label  string
+	target screen
+}
+
+var mainMenuOptions = []menuOption{
+	{"Log an entry", screenTrackHabit},
+	{"Habit activity", screenHabitActivity},
+	{"Manage habits", screenManageHabits},
+}
+
 const (
 	mainMenuTitle = "Main Menu"
 	mainMenuHelp  = "\n↑/↓: move • enter: activate • q: exit"
@@ -24,16 +36,7 @@ func (m Model) updateMain(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.cursor++
 		}
 	case "enter", "space":
-		if m.cursor == 0 {
-			return m.navigateTo(screenHabitActivity)
-		}
-		if m.cursor == 1 {
-			return m.navigateTo(screenManageHabits)
-		}
-		if m.cursor == 2 {
-			return m.navigateTo(screenTrackHabit)
-		}
-		return m.navigateTo(screenMain)
+		return m.navigateTo(m.menuOptions[m.cursor].target)
 	}
 	return m, nil
 }
@@ -45,7 +48,7 @@ func (m Model) mainMenuView() string {
 		if m.cursor == i {
 			cursor = "> "
 		}
-		b.WriteString(cursor + option + "\n")
+		b.WriteString(cursor + option.label + "\n")
 	}
 	return b.String()
 }

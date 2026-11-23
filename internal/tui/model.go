@@ -23,7 +23,7 @@ type Model struct {
 	login        loginForm
 	startCursor  tea.Cmd
 	client       HabitClient
-	menuOptions  []string
+	menuOptions  []menuOption
 	habitsList   []habitclient.Habit
 	loading      bool
 	fetchErr     error
@@ -50,11 +50,7 @@ func New(authenticate func(context.Context, string, string) (HabitClient, error)
 		dashboard:    newHabitsDashboard(),
 		width:        64,
 		height:       24,
-		menuOptions: []string{
-			"Habit activity",
-			"Manage habits",
-			"Add habit entry",
-		},
+		menuOptions:  mainMenuOptions,
 	}
 }
 

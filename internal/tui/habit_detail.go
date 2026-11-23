@@ -111,7 +111,7 @@ func renderEntryWeeks(entries []habitclient.HabitEntry) string {
 
 	var b strings.Builder
 	if len(dated) == 0 {
-		b.WriteString("No entries yet. Log one from Add habit entry.")
+		b.WriteString("No entries yet. Log one from Log an entry.")
 	}
 	for i := 0; i < len(dated); {
 		weekStart := dated[i].date.AddDate(0, 0, -((int(dated[i].date.Weekday()) + 6) % 7))

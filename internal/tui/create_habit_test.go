@@ -21,7 +21,9 @@ func (c formClient) CreateHabit(ctx context.Context, name, description string) e
 
 func openHabitForm(t *testing.T, m Model) Model {
 	t.Helper()
-	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyDown})
+	for range 2 {
+		m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyDown})
+	}
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	if m.screen != screenManageHabits || m.manage.cursor != 0 {
 		t.Fatal("menu did not open Manage habits on the create row")

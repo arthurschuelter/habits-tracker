@@ -14,17 +14,26 @@ import (
 )
 
 const (
-	createHabitEntryTitle = "Add habit entry"
+	createHabitEntryTitle = "Log an entry"
 	createHabitEntryHelp  = "\n↑/↓: choose habit • tab/shift+tab: move • enter: next/save • ctrl+s: save\nr: refresh habits (in list) • esc: cancel • ctrl+c: exit"
 )
 
-type habitEntryItem struct{ habit habitclient.Habit }
+type habitEntryItem struct {
+	habit  habitclient.Habit
+	logged bool
+}
 
-func (i habitEntryItem) Title() string       { return i.habit.Name }
+func (i habitEntryItem) Title() string {
+	if i.logged {
+		return "✓ " + i.habit.Name + " (logged)"
+	}
+	return "• " + i.habit.Name
+}
 func (i habitEntryItem) Description() string { return i.habit.Description }
 func (i habitEntryItem) FilterValue() string { return i.habit.Name }
 
 type habitEntryForm struct {
+	all      []habitclient.Habit
 	habits   list.Model
 	date     textinput.Model
 	duration textinput.Model
@@ -46,7 +55,8 @@ func newHabitEntryForm(width, height int, habits []habitclient.Habit) habitEntry
 
 	date := textinput.New()
 	date.Prompt = ""
-	date.Placeholder = time.Now().Format(time.DateOnly) + " (today)"
+	date.Placeholder = "YYYY-MM-DD"
+	date.SetValue(time.Now().Format(time.DateOnly))
 	duration := textinput.New()
 	duration.Prompt = ""
 	duration.Placeholder = "15"
@@ -57,19 +67,67 @@ func newHabitEntryForm(width, height int, habits []habitclient.Habit) habitEntry
 	return f
 }
 
+// setHabits replaces the choices, keeping the current selection when it still
+// exists and otherwise selecting the first habit without an entry.
 func (f *habitEntryForm) setHabits(habits []habitclient.Habit) tea.Cmd {
-	selected, _ := f.habits.SelectedItem().(habitEntryItem)
+	selected, hadSelection := f.habits.SelectedItem().(habitEntryItem)
+	f.all = habits
+	date, _ := f.entryDate()
 	items := make([]list.Item, len(habits))
-	index := 0
+	index, keep, firstOpen := 0, -1, -1
 	for i, habit := range habits {
-		items[i] = habitEntryItem{habit: habit}
-		if habit.ID == selected.habit.ID {
-			index = i
+		logged := hasEntryOn(habit, date)
+		items[i] = habitEntryItem{habit: habit, logged: logged}
+		if hadSelection && habit.ID == selected.habit.ID {
+			keep = i
 		}
+		if !logged && firstOpen < 0 {
+			firstOpen = i
+		}
+	}
+	if keep >= 0 {
+		index = keep
+	} else if firstOpen >= 0 {
+		index = firstOpen
 	}
 	cmd := f.habits.SetItems(items)
 	f.habits.Select(index)
 	return cmd
+}
+
+// entryDate returns the date the entry will be saved for; blank means today.
+func (f habitEntryForm) entryDate() (string, bool) {
+	date := strings.TrimSpace(f.date.Value())
+	if date == "" {
+		return time.Now().Format(time.DateOnly), true
+	}
+	if _, err := time.Parse(time.DateOnly, date); err != nil {
+		return "", false
+	}
+	return date, true
+}
+
+func hasEntryOn(habit habitclient.Habit, date string) bool {
+	if date == "" {
+		return false
+	}
+	for _, entry := range habit.Entries {
+		if day, ok := entryDate(entry.Date); ok && day.Format(time.DateOnly) == date {
+			return true
+		}
+	}
+	return false
+}
+
+// pendingCount reports how many habits still need an entry on the chosen date.
+func (f habitEntryForm) pendingCount() int {
+	count := 0
+	for _, item := range f.habits.Items() {
+		if entry, ok := item.(habitEntryItem); ok && !entry.logged {
+			count++
+		}
+	}
+	return count
 }
 
 func (f *habitEntryForm) resize(width, height int) {
@@ -132,7 +190,11 @@ func (m Model) updateCreateHabitEntry(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case 0:
 		m.entryForm.habits, cmd = m.entryForm.habits.Update(msg)
 	case 1:
+		before := m.entryForm.date.Value()
 		m.entryForm.date, cmd = m.entryForm.date.Update(msg)
+		if m.entryForm.date.Value() != before {
+			cmd = tea.Batch(cmd, m.entryForm.setHabits(m.entryForm.all))
+		}
 	case 2:
 		m.entryForm.duration, cmd = m.entryForm.duration.Update(msg)
 	}
@@ -150,11 +212,8 @@ func (m Model) submitHabitEntry() (tea.Model, tea.Cmd) {
 		cmd := f.focusField(0)
 		return m, cmd
 	}
-	date := strings.TrimSpace(f.date.Value())
-	if date == "" {
-		date = time.Now().Format(time.DateOnly)
-	}
-	if _, err := time.Parse(time.DateOnly, date); err != nil {
+	date, ok := f.entryDate()
+	if !ok {
 		f.err = errors.New("Enter a valid date in YYYY-MM-DD format.")
 		cmd := f.focusField(1)
 		return m, cmd
@@ -198,9 +257,10 @@ func (m Model) createHabitEntryView() string {
 		}
 	} else {
 		b.WriteString(f.habits.View() + "\n")
+		b.WriteString(f.pendingSummary() + "\n")
 	}
 	b.WriteString("\n")
-	label(1, "Date (YYYY-MM-DD; blank for today)")
+	label(1, "Date (YYYY-MM-DD; defaults to today)")
 	b.WriteString(f.date.View() + "\n\n")
 	label(2, "Duration in minutes (blank for 15)")
 	b.WriteString(f.duration.View() + "\n\n")
@@ -212,4 +272,21 @@ func (m Model) createHabitEntryView() string {
 		b.WriteString("\n" + f.err.Error() + "\n")
 	}
 	return b.String()
+}
+
+func (f habitEntryForm) pendingSummary() string {
+	day := "on this date"
+	if date, ok := f.entryDate(); !ok {
+		return "Enter a valid date to see which habits still need an entry."
+	} else if date == time.Now().Format(time.DateOnly) {
+		day = "today"
+	}
+	pending := f.pendingCount()
+	switch pending {
+	case 0:
+		return "All habits are logged " + day + "."
+	case 1:
+		return "1 habit still needs an entry " + day + "."
+	}
+	return strconv.Itoa(pending) + " habits still need an entry " + day + "."
 }

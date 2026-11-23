@@ -27,7 +27,9 @@ func (c manageClient) SetHabitArchived(_ context.Context, id string, archived bo
 func openManage(t *testing.T, client HabitClient) Model {
 	t.Helper()
 	m := newMainModel(client)
-	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyDown})
+	for range 2 {
+		m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyDown})
+	}
 	m, fetch := updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	if m.screen != screenManageHabits || fetch == nil {
 		t.Fatal("menu did not open Manage habits with a fetch")

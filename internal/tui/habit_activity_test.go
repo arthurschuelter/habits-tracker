@@ -28,6 +28,7 @@ func TestHabitActivityDashboard(t *testing.T) {
 		return want, nil
 	}))
 	m, _ = updateModel(t, m, tea.WindowSizeMsg{Width: 80, Height: 40})
+	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyDown}) // Habit activity
 	m, fetch := updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	require.Equal(t, screenHabitActivity, m.screen)
 	require.NotNil(t, fetch)
@@ -121,6 +122,7 @@ func TestDashboardReturnKeepsMenuInAlternateScreen(t *testing.T) {
 		m := newMainModel(nil)
 		m, _ = updateModel(t, m, tea.WindowSizeMsg{Width: 80, Height: 24})
 		require.True(t, m.View().AltScreen)
+		m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyDown}) // Habit activity
 		m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
 		m, _ = updateModel(t, m, habitsFetchedMsg{habits: []habitclient.Habit{{Name: "Read"}}})
 		require.Equal(t, screenHabitActivity, m.screen)
@@ -143,6 +145,7 @@ func TestHabitActivitySelectionOpensDetail(t *testing.T) {
 	}
 	m := newMainModel(habitListerFunc(func(context.Context) ([]habitclient.Habit, error) { return habits, nil }))
 	m, _ = updateModel(t, m, tea.WindowSizeMsg{Width: 80, Height: 40})
+	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyDown}) // Habit activity
 	m, fetch := updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	m, _ = updateModel(t, m, fetch())
 	require.Contains(t, ansi.Strip(m.View().Content), "› Read")
@@ -252,5 +255,5 @@ Dec 29, 2025 – Jan 04, 2026
   Tue Dec 30  15 min
 
 1 entry has an unreadable date.`, weeks)
-	require.Equal(t, "No entries yet. Log one from Add habit entry.", renderEntryWeeks(nil))
+	require.Equal(t, "No entries yet. Log one from Log an entry.", renderEntryWeeks(nil))
 }

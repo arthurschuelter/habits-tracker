@@ -66,11 +66,22 @@ func TestMenuNavigation(t *testing.T) {
 	if m.cursor != 1 {
 		t.Fatalf("cursor = %d, want 1", m.cursor)
 	}
-	if !strings.Contains(m.View().Content, "> Manage habits") {
+	if !strings.Contains(m.View().Content, "> Habit activity") {
 		t.Fatal("view does not show the selected menu option")
 	}
 	if strings.Contains(m.View().Content, "Create new habit") {
 		t.Fatal("Create new habit moved into Manage habits")
+	}
+}
+
+func TestMenuStartsWithLogAnEntry(t *testing.T) {
+	m := newMainModel(habitListerFunc(entryHabits))
+	if !strings.HasPrefix(m.mainMenuView(), "> Log an entry\n") {
+		t.Fatalf("Log an entry should be the first, selected option:\n%s", m.mainMenuView())
+	}
+	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if m.screen != screenTrackHabit {
+		t.Fatal("enter on the first option should open the entry form")
 	}
 }
 
@@ -81,7 +92,9 @@ func TestFetchCompletesAfterReturningToMenu(t *testing.T) {
 		calls++
 		return want, nil
 	}))
-	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyDown})
+	for range 2 {
+		m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyDown})
+	}
 	m, fetch := updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	if m.screen != screenManageHabits || !m.manage.loading || fetch == nil || calls != 0 {
 		t.Fatal("opening the list should schedule a fetch without performing it in Update")

@@ -23,12 +23,9 @@ func (c entryClient) CreateHabitEntry(ctx context.Context, entry habitclient.Ent
 func openEntryForm(t *testing.T, client HabitClient) (Model, tea.Cmd) {
 	t.Helper()
 	m := newMainModel(client)
-	for range 2 {
-		m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyDown})
-	}
 	m, fetch := updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	if m.screen != screenTrackHabit || !m.loading || fetch == nil {
-		t.Fatal("Add habit entry should open the form and schedule a fetch")
+		t.Fatal("Log an entry should open the form and schedule a fetch")
 	}
 	return m, fetch
 }
@@ -54,7 +51,7 @@ func TestCreateHabitEntryDefaults(t *testing.T) {
 		t.Fatal("cannot save while habits are loading")
 	}
 	m, _ = updateModel(t, m, fetch())
-	for _, text := range []string{"Add habit entry", "Read", "Walk", "Date", "Duration", "Save entry"} {
+	for _, text := range []string{"Log an entry", "Read", "Walk", "Date", "Duration", "Save entry"} {
 		if !strings.Contains(m.View().Content, text) {
 			t.Errorf("form is missing %q", text)
 		}
@@ -98,6 +95,7 @@ func TestCreateHabitEntryFailureAndRetry(t *testing.T) {
 	})
 	m, _ = updateModel(t, m, fetch())
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyTab})
+	m.entryForm.date.SetValue("")
 	m, _ = updateModel(t, m, tea.PasteMsg{Content: " 2026-11-14 "})
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyTab})
 	m, _ = updateModel(t, m, tea.PasteMsg{Content: " 30 "})
@@ -187,6 +185,7 @@ func TestCreateHabitEntryComponentsAndCancel(t *testing.T) {
 		t.Fatal("refresh should preserve the selected habit")
 	}
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyTab})
+	m.entryForm.date.SetValue("")
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: 'q', Text: "q"})
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: 'r', Text: "r"})
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyBackspace})
@@ -206,11 +205,53 @@ func TestCreateHabitEntryComponentsAndCancel(t *testing.T) {
 		t.Fatal("escape should cancel the form")
 	}
 	m, fetch = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
-	if fetch == nil || m.entryForm.date.Value() != "" || m.entryForm.duration.Value() != "" {
+	if fetch == nil || m.entryForm.date.Value() != time.Now().Format(time.DateOnly) || m.entryForm.duration.Value() != "" {
 		t.Fatal("reopening the form should reset inputs and fetch habits")
 	}
 	_, quit := updateModel(t, m, tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	if quit == nil {
 		t.Fatal("ctrl+c should quit from the entry form")
+	}
+}
+
+func TestCreateHabitEntryShowsHabitsStillToLog(t *testing.T) {
+	today := time.Now().Format(time.DateOnly)
+	m, fetch := openEntryForm(t, habitListerFunc(func(context.Context) ([]habitclient.Habit, error) {
+		return []habitclient.Habit{
+			{ID: "habit-1", Name: "Read", Entries: []habitclient.HabitEntry{{Date: today, Duration: 20}}},
+			{ID: "habit-2", Name: "Walk", Entries: []habitclient.HabitEntry{{Date: "2026-11-14", Duration: 30}}},
+			{ID: "habit-3", Name: "Stretch"},
+		}, nil
+	}))
+	if m.entryForm.date.Value() != today {
+		t.Fatalf("date = %q, want today %q", m.entryForm.date.Value(), today)
+	}
+	m, _ = updateModel(t, m, fetch())
+	view := m.View().Content
+	for _, text := range []string{"✓ Read (logged)", "• Walk", "• Stretch", "2 habits still need an entry today."} {
+		if !strings.Contains(view, text) {
+			t.Errorf("form is missing %q:\n%s", text, view)
+		}
+	}
+	if m.entryForm.habits.SelectedItem().(habitEntryItem).habit.ID != "habit-2" {
+		t.Fatal("form should preselect the first habit that still needs an entry")
+	}
+
+	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyTab})
+	m.entryForm.date.SetValue("2026-11-1")
+	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: '4', Text: "4"})
+	view = m.View().Content
+	for _, text := range []string{"• Read", "✓ Walk (logged)", "2 habits still need an entry on this date."} {
+		if !strings.Contains(view, text) {
+			t.Errorf("status should follow the entered date; missing %q:\n%s", text, view)
+		}
+	}
+	if m.entryForm.habits.SelectedItem().(habitEntryItem).habit.ID != "habit-2" {
+		t.Fatal("changing the date should keep the chosen habit")
+	}
+
+	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyBackspace})
+	if !strings.Contains(m.View().Content, "Enter a valid date") {
+		t.Fatal("an incomplete date should explain why status is unavailable")
 	}
 }
