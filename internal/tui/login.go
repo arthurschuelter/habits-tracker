@@ -134,20 +134,37 @@ func (m Model) loginView() string {
 	return content
 }
 
+// endSession returns to sign-in after the server rejects the session.
 func (m Model) endSession() (Model, tea.Cmd) {
+	m, cmd := m.clearSession()
+	m.login.err = habitclient.ErrSessionExpired
+	return m, cmd
+}
+
+// signOut discards the session at the user's request.
+func (m Model) signOut() (Model, tea.Cmd) {
+	m, cmd := m.clearSession()
+	m.notice = "Signed out."
+	return m, cmd
+}
+
+// clearSession drops the client and every screen's account data, then shows
+// sign-in. Bumping session makes results from in-flight requests stale.
+func (m Model) clearSession() (Model, tea.Cmd) {
 	m.session++
 	m.client = nil
 	m.habitsList = nil
 	m.form = habitForm{}
 	m.entryForm = habitEntryForm{}
 	m.dashboard = newHabitsDashboard()
+	m.detail = habitDetail{}
 	m.manage = manageHabits{}
 	m.today = todayScreen{}
 	m.loading = false
 	m.fetchErr = nil
+	m.cursor = 0
 	m.signup = registerForm{}
 	m.login = newLoginForm(m.width)
-	m.login.err = habitclient.ErrSessionExpired
 	cmd := m.login.username.Focus()
 	m, _ = m.navigateTo(screenLogin)
 	return m, cmd
