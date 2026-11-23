@@ -338,6 +338,67 @@
                     }
                 }
             }
+        },
+        "/register": {
+            "post": {
+                "description": "Create an account with a username, email, and password. The username and email are trimmed, and the email is lowercased. Passwords need at least 8 characters and at most 1024 bytes. Returns an empty body; sign in with POST /login to get a session token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Register",
+                "parameters": [
+                    {
+                        "description": "Account details",
+                        "name": "account",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.registerRequestDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Account created"
+                    },
+                    "400": {
+                        "description": "Invalid request body or field",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
+                    "409": {
+                        "description": "Username or email already in use",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
+                    "413": {
+                        "description": "Request body too large",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
+                    "429": {
+                        "description": "Too many attempts",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected server error",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -502,6 +563,30 @@
             "properties": {
                 "token": {
                     "type": "string"
+                }
+            }
+        },
+        "api.registerRequestDTO": {
+            "type": "object",
+            "required": [
+                "email",
+                "password",
+                "username"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "alex@example.com"
+                },
+                "password": {
+                    "type": "string",
+                    "format": "password",
+                    "minLength": 8
+                },
+                "username": {
+                    "type": "string",
+                    "example": "alex"
                 }
             }
         }

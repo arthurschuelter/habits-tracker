@@ -122,6 +122,24 @@ definitions:
       token:
         type: string
     type: object
+  api.registerRequestDTO:
+    properties:
+      email:
+        example: alex@example.com
+        format: email
+        type: string
+      password:
+        format: password
+        minLength: 8
+        type: string
+      username:
+        example: alex
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
 info:
   contact: {}
   description: Create habits, list habits with daily entries and streaks, and record
@@ -353,6 +371,49 @@ paths:
           schema:
             $ref: '#/definitions/api.errorResponseDTO'
       summary: Sign in
+      tags:
+      - Authentication
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Create an account with a username, email, and password. The username
+        and email are trimmed, and the email is lowercased. Passwords need at least
+        8 characters and at most 1024 bytes. Returns an empty body; sign in with POST
+        /login to get a session token.
+      parameters:
+      - description: Account details
+        in: body
+        name: account
+        required: true
+        schema:
+          $ref: '#/definitions/api.registerRequestDTO'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Account created
+        "400":
+          description: Invalid request body or field
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+        "409":
+          description: Username or email already in use
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+        "413":
+          description: Request body too large
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+        "429":
+          description: Too many attempts
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+        "500":
+          description: Unexpected server error
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+      summary: Register
       tags:
       - Authentication
 securityDefinitions:
