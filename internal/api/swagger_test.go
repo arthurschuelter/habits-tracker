@@ -80,7 +80,7 @@ func TestSwaggerSpecification(t *testing.T) {
 		require.Contains(t, doc.Paths, path, route.Path)
 		require.Contains(t, doc.Paths[path], strings.ToLower(route.Method), route.Path)
 	}
-	for _, path := range []string{"/habits", "/habit_entries"} {
+	for _, path := range []string{"/habits", "/habit_entries", "/register"} {
 		response, ok := doc.Paths[path]["post"].Responses["201"]
 		require.True(t, ok, path)
 		require.Empty(t, response.Schema, "creation returns an empty body")
@@ -97,6 +97,13 @@ func TestSwaggerSpecification(t *testing.T) {
 	updateRequest := doc.Definitions["api.UpdateHabitRequestDTO"]
 	require.Empty(t, updateRequest.Required, "update fields are individually optional")
 	require.Equal(t, "boolean", updateRequest.Properties["archived"].Type)
+
+	for _, status := range []string{"400", "409", "413", "429", "500"} {
+		require.Contains(t, doc.Paths["/register"]["post"].Responses, status)
+	}
+	registerRequest := doc.Definitions["api.registerRequestDTO"]
+	require.ElementsMatch(t, []string{"username", "email", "password"}, registerRequest.Required)
+	require.Equal(t, "password", registerRequest.Properties["password"].Format)
 
 	habitRequest := doc.Definitions["api.CreateHabitRequestDTO"]
 	require.ElementsMatch(t, []string{"name"}, habitRequest.Required)

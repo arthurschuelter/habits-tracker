@@ -38,6 +38,26 @@ func (r *PostgresRepo) SetPassword(ctx context.Context, email string, password [
 	return requireUserUpdate(result, ErrUserNotFound)
 }
 
+// createUser relies on unique constraints rather than existence checks, so
+// concurrent registrations cannot both claim a username or email.
+func (r *PostgresRepo) createUser(ctx context.Context, username, email, passwordHash string) error {
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3)`, username, email, passwordHash)
+	var pgErr *pq.Error
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		switch pgErr.Constraint {
+		case "users_login_username_key":
+			return ErrUsernameTaken
+		case "users_email_key":
+			return ErrEmailTaken
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("create user: %w", err)
+	}
+	return nil
+}
+
 func (r *PostgresRepo) credentials(ctx context.Context, username string) (credentials, error) {
 	var creds credentials
 	err := r.db.QueryRowContext(ctx, `
