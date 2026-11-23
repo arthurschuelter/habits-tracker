@@ -139,6 +139,7 @@ func (m Model) endSession() (Model, tea.Cmd) {
 	m.form = habitForm{}
 	m.entryForm = habitEntryForm{}
 	m.dashboard = newHabitsDashboard()
+	m.manage = manageHabits{}
 	m.loading = false
 	m.fetchErr = nil
 	m.login = newLoginForm(m.width)

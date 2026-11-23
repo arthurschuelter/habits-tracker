@@ -12,6 +12,9 @@ type HabitClient interface {
 	ListHabits(context.Context) ([]habitclient.Habit, error)
 	CreateHabit(context.Context, string, string) error
 	CreateHabitEntry(context.Context, habitclient.EntryRequest) error
+	ListAllHabits(context.Context) ([]habitclient.Habit, error)
+	RenameHabit(ctx context.Context, habitID, name string) error
+	SetHabitArchived(ctx context.Context, habitID string, archived bool) error
 }
 
 type Model struct {
@@ -28,6 +31,7 @@ type Model struct {
 	form         habitForm
 	entryForm    habitEntryForm
 	dashboard    habitsDashboard
+	manage       manageHabits
 	notice       string
 	cursor       int
 	width        int
@@ -49,7 +53,6 @@ func New(authenticate func(context.Context, string, string) (HabitClient, error)
 			"Fetch habits",
 			"Manage habits",
 			"Add habit entry",
-			"Create new habit",
 		},
 	}
 }
@@ -103,6 +106,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := m.form.focusField(m.form.focus)
 		return m, cmd
 	}
+	if result, ok := msg.(habitUpdatedMsg); ok {
+		return m.handleHabitUpdated(result)
+	}
+	if result, ok := msg.(manageHabitsFetchedMsg); ok {
+		if result.session != m.session || result.fetchID != m.manage.fetchID {
+			return m, nil
+		}
+		if errors.Is(result.err, habitclient.ErrSessionExpired) {
+			return m.endSession()
+		}
+		m.manage.loading = false
+		m.manage.err = result.err
+		if result.err == nil {
+			m.manage.setHabits(result.habits)
+		}
+		return m, nil
+	}
 	if result, ok := msg.(habitsFetchedMsg); ok {
 		if result.session != m.session {
 			return m, nil
@@ -134,13 +154,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.screen == screenFetchHabits {
 		return m.updateFetchHabits(msg)
 	}
+	if m.screen == screenManageHabits {
+		return m.updateManageHabits(msg)
+	}
 	if !isKey {
 		return m, nil
 	}
 
 	switch m.screen {
-	case screenManageHabits:
-		return m.updateListHabits(key)
 	case screenMain:
 		return m.updateMain(key)
 	}

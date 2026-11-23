@@ -21,12 +21,14 @@ func (c formClient) CreateHabit(ctx context.Context, name, description string) e
 
 func openHabitForm(t *testing.T, m Model) Model {
 	t.Helper()
-	for range 3 {
-		m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyDown})
+	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyDown})
+	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if m.screen != screenManageHabits || m.manage.cursor != 0 {
+		t.Fatal("menu did not open Manage habits on the create row")
 	}
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	if m.screen != screenCreateNewHabit {
-		t.Fatal("menu did not open the create screen")
+		t.Fatal("create row did not open the create screen")
 	}
 	return m
 }
@@ -89,8 +91,8 @@ func TestCreateHabitRequiresNameAndCanCancel(t *testing.T) {
 		t.Fatal("blank name should be rejected before making a request")
 	}
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEscape})
-	if m.screen != screenMain {
-		t.Fatal("escape should return to the menu")
+	if m.screen != screenManageHabits {
+		t.Fatal("escape should return to Manage habits")
 	}
 }
 

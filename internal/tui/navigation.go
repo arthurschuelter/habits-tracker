@@ -19,6 +19,11 @@ func (m Model) navigateTo(next screen) (Model, tea.Cmd) {
 		m.entryForm.date.Blur()
 		m.entryForm.duration.Blur()
 	}
+	if m.screen == screenManageHabits {
+		m.manage.renaming = false
+		m.manage.actionErr = nil
+		m.manage.name.Blur()
+	}
 	if m.screen == screenCreateNewHabit {
 		m.form.name.Blur()
 		m.form.description.Blur()
@@ -39,7 +44,7 @@ func (m Model) navigateTo(next screen) (Model, tea.Cmd) {
 		return m, cmd
 	}
 	if next == screenManageHabits {
-		return m.refreshHabits()
+		return m.reloadManageHabits()
 	}
 	return m, nil
 }

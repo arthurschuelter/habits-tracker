@@ -194,7 +194,7 @@ func (m Model) createHabitEntryView() string {
 	label(0, "Habit")
 	if len(f.habits.Items()) == 0 {
 		if !m.loading && m.fetchErr == nil {
-			b.WriteString("No habits available. Create a habit from the main menu first.\n")
+			b.WriteString("No habits available. Create one from Manage habits first.\n")
 		}
 	} else {
 		b.WriteString(f.habits.View() + "\n")

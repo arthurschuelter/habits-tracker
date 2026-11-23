@@ -60,7 +60,7 @@ func (m *Model) syncHabitsDashboard() {
 		case m.fetchErr != nil:
 			content = "Press r to try again."
 		default:
-			content = "No habits yet. Create a habit from the main menu to get started."
+			content = "No habits yet. Create one from Manage habits to get started."
 		}
 		content = lipgloss.NewStyle().Width(max(1, m.width)).Render(content)
 	}

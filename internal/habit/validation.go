@@ -17,7 +17,7 @@ func (e *ValidationError) Error() string {
 }
 
 func Validate(habit Habit) (Habit, error) {
-	name, err := normalizeName(habit.Name)
+	name, err := NormalizeName(habit.Name)
 	if err != nil {
 		return Habit{}, err
 	}
@@ -42,7 +42,7 @@ func ValidateUpdate(habitID string, u Update) (string, Update, error) {
 
 	out := Update{Archived: u.Archived}
 	if u.Name != nil {
-		name, err := normalizeName(*u.Name)
+		name, err := NormalizeName(*u.Name)
 		if err != nil {
 			return "", Update{}, err
 		}
@@ -52,7 +52,8 @@ func ValidateUpdate(habitID string, u Update) (string, Update, error) {
 	return id.String(), out, nil
 }
 
-func normalizeName(name string) (string, error) {
+// NormalizeName trims a habit name and rejects blank names.
+func NormalizeName(name string) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return "", &ValidationError{Field: "name", Message: "is required"}

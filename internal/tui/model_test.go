@@ -25,6 +25,19 @@ func (f habitListerFunc) CreateHabitEntry(context.Context, habitclient.EntryRequ
 	return errors.New("unexpected entry request")
 }
 
+// ListAllHabits serves Manage habits from the same fake list.
+func (f habitListerFunc) ListAllHabits(ctx context.Context) ([]habitclient.Habit, error) {
+	return f(ctx)
+}
+
+func (f habitListerFunc) RenameHabit(context.Context, string, string) error {
+	return errors.New("unexpected rename request")
+}
+
+func (f habitListerFunc) SetHabitArchived(context.Context, string, bool) error {
+	return errors.New("unexpected archive request")
+}
+
 func updateModel(t *testing.T, m Model, msg tea.Msg) (Model, tea.Cmd) {
 	t.Helper()
 	next, cmd := m.Update(msg)
@@ -49,13 +62,15 @@ func TestMenuNavigation(t *testing.T) {
 	if m.cursor != len(m.menuOptions)-1 {
 		t.Fatalf("cursor = %d, want last option", m.cursor)
 	}
-	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyUp})
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: 'k'})
 	if m.cursor != 1 {
 		t.Fatalf("cursor = %d, want 1", m.cursor)
 	}
 	if !strings.Contains(m.View().Content, "> Manage habits") {
 		t.Fatal("view does not show the selected menu option")
+	}
+	if strings.Contains(m.View().Content, "Create new habit") {
+		t.Fatal("Create new habit moved into Manage habits")
 	}
 }
 
@@ -68,7 +83,7 @@ func TestFetchCompletesAfterReturningToMenu(t *testing.T) {
 	}))
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyDown})
 	m, fetch := updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
-	if m.screen != screenManageHabits || !m.loading || fetch == nil || calls != 0 {
+	if m.screen != screenManageHabits || !m.manage.loading || fetch == nil || calls != 0 {
 		t.Fatal("opening the list should schedule a fetch without performing it in Update")
 	}
 	if !strings.Contains(m.View().Content, "Fetching habits...") {
@@ -83,17 +98,18 @@ func TestFetchCompletesAfterReturningToMenu(t *testing.T) {
 		t.Fatal("back did not return to the menu")
 	}
 	m, _ = updateModel(t, m, fetch())
-	if m.screen != screenMain || m.loading || m.fetchErr != nil || !reflect.DeepEqual(m.habitsList, want) || calls != 1 {
+	if m.screen != screenMain || m.manage.loading || m.manage.err != nil || !reflect.DeepEqual(m.manage.habits, want) || calls != 1 {
 		t.Fatal("fetch completion should update shared data while staying on the menu")
 	}
 	m, refresh := updateModel(t, m, tea.KeyPressMsg{Code: tea.KeySpace})
 	if m.screen != screenManageHabits || refresh == nil {
 		t.Fatal("reopening the list with space should schedule a refresh")
 	}
+	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: 'j'})
 	view := m.View().Content
-	for _, text := range []string{"Manage Habits", "Read", "Read daily", "r: refresh • b/esc: return • q: exit"} {
+	for _, text := range []string{"Manage Habits", "+ Create new habit", "> Read", "Read daily", "r: refresh • b/esc: return • q: exit"} {
 		if !strings.Contains(view, text) {
-			t.Errorf("list view is missing %q", text)
+			t.Errorf("list view is missing %q:\n%s", text, view)
 		}
 	}
 }
@@ -105,10 +121,10 @@ func TestRefreshFailureAndRetry(t *testing.T) {
 	}))
 	m.screen = screenManageHabits
 	want := []habitclient.Habit{{ID: "habit-1", Name: "Read"}}
-	m.habitsList = want
+	m.manage.habits = want
 	m, fetch := updateModel(t, m, tea.KeyPressMsg{Code: 'r'})
 	m, _ = updateModel(t, m, fetch())
-	if m.loading || !errors.Is(m.fetchErr, fetchErr) || !reflect.DeepEqual(m.habitsList, want) {
+	if m.manage.loading || !errors.Is(m.manage.err, fetchErr) || !reflect.DeepEqual(m.manage.habits, want) {
 		t.Fatal("failed refresh should stop loading and preserve the previously loaded habits")
 	}
 	view := m.View().Content
@@ -119,14 +135,14 @@ func TestRefreshFailureAndRetry(t *testing.T) {
 		return []habitclient.Habit{}, nil
 	})
 	m, retry := updateModel(t, m, tea.KeyPressMsg{Code: 'r'})
-	if retry == nil || !m.loading || m.fetchErr != nil {
+	if retry == nil || !m.manage.loading || m.manage.err != nil {
 		t.Fatal("retry should clear the previous error and start loading")
 	}
 	m, _ = updateModel(t, m, retry())
-	if m.loading || m.fetchErr != nil || len(m.habitsList) != 0 {
+	if m.manage.loading || m.manage.err != nil || len(m.manage.habits) != 0 {
 		t.Fatal("successful retry should replace the previously loaded habits")
 	}
-	if !strings.Contains(m.View().Content, "No habits loaded. Press r to fetch habits.") {
+	if !strings.Contains(m.View().Content, "No habits yet. Select Create new habit to add one.") {
 		t.Fatal("view does not show the empty state")
 	}
 }

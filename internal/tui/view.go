@@ -27,7 +27,11 @@ func (m Model) standardView() tea.View {
 	case screenCreateNewHabit:
 		title, help, content = createHabitTitle, createHabitHelp, m.createHabitView()
 	case screenManageHabits:
-		title, help, content = habitsListTitle, habitsListHelp, m.listHabitsView()
+		help = habitsListHelp
+		if m.manage.renaming {
+			help = renameHelp
+		}
+		title, content = habitsListTitle, m.manageHabitsView()
 	case screenMain:
 		content = m.mainMenuView()
 	}
@@ -37,10 +41,11 @@ func (m Model) standardView() tea.View {
 	if m.notice != "" {
 		b.WriteString(m.notice + "\n\n")
 	}
-	if m.loading {
+	// Manage habits shows its own loading state for its separate habit list.
+	if m.loading && m.screen != screenManageHabits {
 		b.WriteString("Fetching habits...\n\n")
 	}
-	if m.fetchErr != nil {
+	if m.fetchErr != nil && m.screen != screenManageHabits {
 		b.WriteString("Could not refresh habits: " + m.fetchErr.Error() + "\n\n")
 	}
 	b.WriteString(content)

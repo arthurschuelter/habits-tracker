@@ -69,7 +69,7 @@ func (m Model) updateCreateHabit(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+s":
 			return m.submitHabit()
 		case "esc":
-			return m.navigateTo(screenMain)
+			return m.navigateTo(screenManageHabits)
 		case "tab":
 			cmd := m.form.focusField((m.form.focus + 1) % 3)
 			return m, cmd

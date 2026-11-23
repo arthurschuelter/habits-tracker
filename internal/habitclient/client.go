@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -53,9 +54,17 @@ func New(baseURL string, httpClient *http.Client) *Client {
 	}
 }
 
-// ListHabits fetches the available habits.
+// ListHabits fetches the active habits.
 func (c *Client) ListHabits(ctx context.Context) ([]Habit, error) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/habits", nil)
+	return c.listHabits(ctx, "")
+}
+
+func (c *Client) listHabits(ctx context.Context, archived string) ([]Habit, error) {
+	target := c.baseURL + "/habits"
+	if archived != "" {
+		target += "?archived=" + url.QueryEscape(archived)
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
 		return nil, fmt.Errorf("fetch habits: %w", err)
 	}
