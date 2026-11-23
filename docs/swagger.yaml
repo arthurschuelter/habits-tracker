@@ -32,6 +32,20 @@ definitions:
     required:
     - name
     type: object
+  api.UpdateHabitRequestDTO:
+    properties:
+      archived:
+        description: true archives the habit; false restores it.
+        example: true
+        type: boolean
+        x-nullable: true
+      name:
+        description: New name; trimmed and must be nonblank when present.
+        example: Read before bed
+        minLength: 1
+        type: string
+        x-nullable: true
+    type: object
   api.errorResponseDTO:
     properties:
       message:
@@ -248,6 +262,53 @@ paths:
       security:
       - BearerAuth: []
       summary: Create a habit
+      tags:
+      - Habits
+  /habits/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Partially updates a habit owned by the authenticated user. Send
+        name to rename it (trimmed, must be nonblank) and/or archived to archive (true)
+        or restore (false) it. Omitted fields are unchanged; at least one field is
+        required. Repeating a request is harmless. Returns an empty body on success.
+      parameters:
+      - description: Habit ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to change
+        in: body
+        name: habit
+        required: true
+        schema:
+          $ref: '#/definitions/api.UpdateHabitRequestDTO'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Habit updated; empty body
+        "400":
+          description: Invalid request body, habit ID, or name, or no fields to change
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+        "404":
+          description: Habit not found
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+        "500":
+          description: Unexpected server error
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+      security:
+      - BearerAuth: []
+      summary: Update a habit
       tags:
       - Habits
   /login:

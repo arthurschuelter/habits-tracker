@@ -207,6 +207,74 @@
                 }
             }
         },
+        "/habits/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Partially updates a habit owned by the authenticated user. Send name to rename it (trimmed, must be nonblank) and/or archived to archive (true) or restore (false) it. Omitted fields are unchanged; at least one field is required. Repeating a request is harmless. Returns an empty body on success.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Habits"
+                ],
+                "summary": "Update a habit",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Habit ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to change",
+                        "name": "habit",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.UpdateHabitRequestDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Habit updated; empty body"
+                    },
+                    "400": {
+                        "description": "Invalid request body, habit ID, or name, or no fields to change",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Habit not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected server error",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    }
+                }
+            }
+        },
         "/login": {
             "post": {
                 "description": "Sign in with an existing username and password. The bearer token expires after 24 hours. Signing in again replaces the previous session for that user.",
@@ -312,6 +380,24 @@
                     "type": "string",
                     "minLength": 1,
                     "example": "Read"
+                }
+            }
+        },
+        "api.UpdateHabitRequestDTO": {
+            "type": "object",
+            "properties": {
+                "archived": {
+                    "description": "true archives the habit; false restores it.",
+                    "type": "boolean",
+                    "x-nullable": true,
+                    "example": true
+                },
+                "name": {
+                    "description": "New name; trimmed and must be nonblank when present.",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true,
+                    "example": "Read before bed"
                 }
             }
         },
