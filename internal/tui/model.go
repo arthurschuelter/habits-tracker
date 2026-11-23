@@ -133,6 +133,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		m.fetchErr = result.err
 		if result.err == nil {
+			m.dashboard.reselect(m.habitsList, result.habits)
 			m.habitsList = result.habits
 			if m.screen == screenTrackHabit {
 				cmd := m.entryForm.setHabits(result.habits)

@@ -7,17 +7,33 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/arthurschuelter/habits-tracker/internal/habitclient"
 )
 
 const activityDays = 30
 
 type habitsDashboard struct {
-	viewport viewport.Model
-	end      time.Time
+	viewport   viewport.Model
+	end        time.Time
+	cursor     int   // index of the selected habit in Model.habitsList.
+	cardStarts []int // first content line of each rendered card.
 }
 
 func newHabitsDashboard() habitsDashboard {
 	return habitsDashboard{viewport: viewport.New(), end: time.Now()}
+}
+
+// reselect keeps the same habit selected when a refresh reorders or removes habits.
+func (d *habitsDashboard) reselect(previous, next []habitclient.Habit) {
+	if d.cursor >= 0 && d.cursor < len(previous) {
+		for i, h := range next {
+			if h.ID == previous[d.cursor].ID {
+				d.cursor = i
+				return
+			}
+		}
+	}
+	d.cursor = max(0, min(d.cursor, len(next)-1))
 }
 
 func (m Model) dashboardFrame() (string, string) {
@@ -34,9 +50,9 @@ func (m Model) dashboardFrame() (string, string) {
 		header += wrap.Render("Could not refresh habits: "+m.fetchErr.Error()) + "\n"
 	}
 	legend := "□ no entry  ▪ <15m  ■ 15-29m  ★ 30m+  [ ] today"
-	controls := "↑/↓ j/k: scroll · pgup/pgdown: page · ←/→: dates · t: today"
+	controls := "↑/↓ j/k: select · pgup/pgdown: scroll · ←/→: dates · t: today"
 	if width < 50 {
-		controls = "↑/↓: scroll · ←/→: dates · t: today"
+		controls = "↑/↓: select · ←/→: dates · t: today"
 	}
 	if width < 24 {
 		legend = "□ none · ▪/■/★ logged · [ ] today"
@@ -52,7 +68,8 @@ func (m *Model) syncHabitsDashboard() {
 	m.dashboard.viewport.SetWidth(max(1, m.width))
 	// Both boundary lines join the viewport rather than adding another line.
 	m.dashboard.viewport.SetHeight(max(1, m.height-lipgloss.Height(header)-lipgloss.Height(footer)+2))
-	content := renderHabitCards(m.habitsList, m.dashboard.end, time.Now(), m.width)
+	content, starts := renderHabitCards(m.habitsList, m.dashboard.cursor, m.dashboard.end, time.Now(), m.width)
+	m.dashboard.cardStarts = starts
 	if len(m.habitsList) == 0 {
 		switch {
 		case m.loading:
@@ -67,6 +84,26 @@ func (m *Model) syncHabitsDashboard() {
 	m.dashboard.viewport.SetContent(content)
 }
 
+// scrollToSelectedCard shows as much of the selected card as fits, starting with its title.
+func (m *Model) scrollToSelectedCard() {
+	starts, cursor := m.dashboard.cardStarts, m.dashboard.cursor
+	if cursor < 0 || cursor >= len(starts) {
+		return
+	}
+	top := starts[cursor]
+	bottom := m.dashboard.viewport.TotalLineCount() - 1
+	if cursor+1 < len(starts) {
+		bottom = starts[cursor+1] - 2
+	}
+	vp := &m.dashboard.viewport
+	if bottom >= vp.YOffset()+vp.Height() {
+		vp.SetYOffset(bottom - vp.Height() + 1)
+	}
+	if top < vp.YOffset() {
+		vp.SetYOffset(top)
+	}
+}
+
 func (m Model) updateHabitActivity(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if _, ok := msg.(tea.WindowSizeMsg); ok {
 		m.syncHabitsDashboard()
@@ -79,6 +116,15 @@ func (m Model) updateHabitActivity(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.navigateTo(screenMain)
 		case "r":
 			return m.refreshHabits()
+		case "up", "k", "down", "j":
+			if key.String() == "up" || key.String() == "k" {
+				m.dashboard.cursor = max(0, m.dashboard.cursor-1)
+			} else {
+				m.dashboard.cursor = max(0, min(len(m.habitsList)-1, m.dashboard.cursor+1))
+			}
+			m.syncHabitsDashboard()
+			m.scrollToSelectedCard()
+			return m, nil
 		case "left", "h", "right", "l", "t":
 			switch key.String() {
 			case "left", "h":

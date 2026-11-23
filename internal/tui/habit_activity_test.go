@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -130,4 +131,25 @@ func TestDashboardReturnKeepsMenuInAlternateScreen(t *testing.T) {
 		require.True(t, m.View().AltScreen, "returning must keep the same terminal buffer")
 		require.True(t, strings.HasPrefix(ansi.Strip(m.View().Content), mainMenuTitle+"\n"))
 	}
+}
+
+func TestHabitActivityKeepsSelectionVisible(t *testing.T) {
+	habits := make([]habitclient.Habit, 6)
+	for i := range habits {
+		habits[i] = habitclient.Habit{ID: fmt.Sprint(i), Name: fmt.Sprintf("Habit %d", i)}
+	}
+	m := newMainModel(nil)
+	m, _ = updateModel(t, m, tea.WindowSizeMsg{Width: 60, Height: 24})
+	m, _ = m.navigateTo(screenHabitActivity)
+	m, _ = updateModel(t, m, habitsFetchedMsg{habits: habits})
+	for i := 1; i < len(habits); i++ {
+		m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyDown})
+		require.Contains(t, ansi.Strip(m.View().Content), fmt.Sprintf("› Habit %d", i))
+	}
+	require.Positive(t, m.dashboard.viewport.YOffset())
+	for i := len(habits) - 2; i >= 0; i-- {
+		m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyUp})
+		require.Contains(t, ansi.Strip(m.View().Content), fmt.Sprintf("› Habit %d", i))
+	}
+	require.Zero(t, m.dashboard.viewport.YOffset())
 }

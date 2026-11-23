@@ -12,8 +12,9 @@ import (
 var (
 	habitCardStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#45475A")).Padding(0, 1)
-	streakStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#F9E2AF"))
-	activityColors = []string{"#585B70", "#6A9F8B", "#89DCAA", "#C2F5B0"}
+	selectedCardColor = lipgloss.Color("#7EBAE4")
+	streakStyle       = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#F9E2AF"))
+	activityColors    = []string{"#585B70", "#6A9F8B", "#89DCAA", "#C2F5B0"}
 )
 
 // entryDays preserves the recorded calendar date, including older RFC3339 responses.
@@ -31,11 +32,15 @@ func entryDays(entries []habitclient.HabitEntry) map[string]int {
 	return days
 }
 
-func renderHabitCards(habits []habitclient.Habit, end, today time.Time, width int) string {
+// renderHabitCards highlights the selected card and returns the first content
+// line of each card so the viewport can keep the selection visible.
+func renderHabitCards(habits []habitclient.Habit, selected int, end, today time.Time, width int) (string, []int) {
 	inner := max(1, min(92, width-4))
 	text := lipgloss.NewStyle().Width(inner)
 	cards := make([]string, 0, len(habits))
-	for _, habit := range habits {
+	starts := make([]int, 0, len(habits))
+	line := 0
+	for i, habit := range habits {
 		days := entryDays(habit.Entries)
 		minutes := 0
 		for _, entry := range habit.Entries {
@@ -57,18 +62,29 @@ func renderHabitCards(habits []habitclient.Habit, end, today time.Time, width in
 		if len(habit.Entries) == 1 {
 			entryLabel = "entry"
 		}
-		content := text.Render(titleStyle.Render(habit.Name)) + "\n" +
+		name := habit.Name
+		if i == selected {
+			name = "› " + name
+		}
+		content := text.Render(titleStyle.Render(name)) + "\n" +
 			text.Render(description) + "\n" +
 			text.Render(streakStyle.Render(fmt.Sprintf("Current streak: %d %s", habit.Streak, dayLabel))) + "\n" +
 			text.Render(streakStyle.Render(fmt.Sprintf("Highest streak: %d %s", habit.HighestStreak, highestDayLabel))) + "\n" +
 			text.Render(fmt.Sprintf("%d %s · %d min total", len(habit.Entries), entryLabel, minutes)) + "\n\n" +
 			renderActivityGrid(days, end, today, inner)
 		if width >= 12 {
-			content = habitCardStyle.Width(inner + habitCardStyle.GetHorizontalFrameSize()).Render(content)
+			style := habitCardStyle
+			if i == selected {
+				style = style.BorderForeground(selectedCardColor)
+			}
+			content = style.Width(inner + style.GetHorizontalFrameSize()).Render(content)
 		}
 		cards = append(cards, content)
+		starts = append(starts, line)
+		// Cards are separated by one blank line.
+		line += lipgloss.Height(content) + 1
 	}
-	return strings.Join(cards, "\n\n")
+	return strings.Join(cards, "\n\n"), starts
 }
 
 func renderActivityGrid(days map[string]int, end, today time.Time, width int) string {
