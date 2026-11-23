@@ -116,3 +116,35 @@ func (r *PostgresRepo) Create(ctx context.Context, h *Habit) error {
 
 	return nil
 }
+
+func (r *PostgresRepo) Update(ctx context.Context, userID, habitID string, u Update) error {
+	const q = `
+		UPDATE habits
+		SET name = COALESCE($3, name),
+			archived = COALESCE($4, archived),
+			updated_at = CURRENT_TIMESTAMP
+		WHERE id = $1 AND user_id = $2`
+
+	var name sql.NullString
+	if u.Name != nil {
+		name = sql.NullString{String: *u.Name, Valid: true}
+	}
+	var archived sql.NullBool
+	if u.Archived != nil {
+		archived = sql.NullBool{Bool: *u.Archived, Valid: true}
+	}
+
+	res, err := r.db.ExecContext(ctx, q, habitID, userID, name, archived)
+	if err != nil {
+		return fmt.Errorf("update habit %s: %w", habitID, err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update habit %s: rows affected: %w", habitID, err)
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}

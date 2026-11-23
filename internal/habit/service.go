@@ -22,3 +22,13 @@ func (s *Service) Create(ctx context.Context, habit *Habit) error {
 
 	return s.repo.Create(ctx, &h)
 }
+
+// Update renames and/or archives a habit owned by userID.
+func (s *Service) Update(ctx context.Context, userID, habitID string, u Update) error {
+	id, update, err := ValidateUpdate(habitID, u)
+	if err != nil {
+		return err
+	}
+
+	return s.repo.Update(ctx, userID, id, update)
+}

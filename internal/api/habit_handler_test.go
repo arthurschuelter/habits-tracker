@@ -37,6 +37,14 @@ type createRepository struct {
 	created *habit.Habit
 	habits  []habit.Habit
 	filter  habit.ArchiveFilter
+	updated *habit.Update
+	updID   string
+	updErr  error
+}
+
+func (r *createRepository) Update(_ context.Context, _ string, habitID string, u habit.Update) error {
+	r.updID, r.updated = habitID, &u
+	return r.updErr
 }
 
 func (r *createRepository) GetByID(context.Context, string) (*habit.Habit, error) {
@@ -197,3 +205,58 @@ func TestGetHabitsArchiveFilter(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateHabitValidation(t *testing.T) {
+	const id = "33333333-3333-3333-3333-333333333333"
+	for _, tt := range []struct {
+		name, path, body string
+		repoErr          error
+		status           int
+		message          string
+		wantName         *string
+		wantArchived     *bool
+	}{
+		{name: "rename", path: id, body: `{"name":"  Read more "}`, status: http.StatusNoContent, wantName: ptr("Read more")},
+		{name: "archive", path: id, body: `{"archived":true}`, status: http.StatusNoContent, wantArchived: ptr(true)},
+		{name: "unarchive", path: id, body: `{"archived":false}`, status: http.StatusNoContent, wantArchived: ptr(false)},
+		{name: "both", path: strings.ToUpper(id), body: `{"name":"Walk","archived":true}`, status: http.StatusNoContent, wantName: ptr("Walk"), wantArchived: ptr(true)},
+		{name: "blank name", path: id, body: `{"name":"  "}`, status: http.StatusBadRequest, message: "name is required"},
+		{name: "empty body", path: id, body: `{}`, status: http.StatusBadRequest, message: "must include name or archived"},
+		{name: "null fields", path: id, body: `{"name":null,"archived":null}`, status: http.StatusBadRequest, message: "must include name or archived"},
+		{name: "invalid id", path: "not-a-uuid", body: `{"archived":true}`, status: http.StatusBadRequest, message: "must be a valid UUID"},
+		{name: "invalid JSON", path: id, body: `{`, status: http.StatusBadRequest, message: "invalid request body"},
+		{name: "wrong type", path: id, body: `{"archived":"yes"}`, status: http.StatusBadRequest, message: "invalid request body"},
+		{name: "not found", path: id, body: `{"archived":true}`, repoErr: habit.ErrNotFound, status: http.StatusNotFound, message: "habit not found"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			e := echo.New()
+			repo := &createRepository{updErr: tt.repoErr}
+			NewHabitHandler(habit.NewService(repo), nil).Routes(e, testSession)
+			req := authenticatedRequest(http.MethodPatch, apiPrefix+"/habits/"+tt.path, strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+			e.ServeHTTP(rec, req)
+
+			require.Equal(t, tt.status, rec.Code, rec.Body.String())
+			require.Contains(t, rec.Body.String(), tt.message)
+			if tt.status == http.StatusNoContent {
+				require.Empty(t, rec.Body.String())
+				require.Equal(t, id, repo.updID)
+				require.Equal(t, tt.wantName, repo.updated.Name)
+				require.Equal(t, tt.wantArchived, repo.updated.Archived)
+			} else if tt.repoErr == nil {
+				require.Nil(t, repo.updated, "invalid request should not reach the repository")
+			}
+		})
+	}
+
+	t.Run("requires session", func(t *testing.T) {
+		e := echo.New()
+		NewHabitHandler(nil, nil).Routes(e, testSession)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, httptest.NewRequest(http.MethodPatch, apiPrefix+"/habits/"+id, strings.NewReader(`{"archived":true}`)))
+		require.Equal(t, http.StatusUnauthorized, rec.Code)
+	})
+}
+
+func ptr[T any](v T) *T { return &v }

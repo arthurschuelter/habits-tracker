@@ -26,6 +26,7 @@ func (h *HabitHandler) Routes(e *echo.Echo, sessionUser func(context.Context, st
 	session := requireSession(sessionUser)
 	v2.GET("/habits", h.GetHabits, session)
 	v2.POST("/habits", h.CreateHabits, session)
+	v2.PATCH("/habits/:id", h.UpdateHabit, session)
 	v2.POST("/habit_entries", h.CreateHabitEntries, session)
 }
 
@@ -134,10 +135,51 @@ func (h *HabitHandler) CreateHabits(ctx *echo.Context) error {
 	}
 
 	if err := h.habits.Create(ctx.Request().Context(), &hb); err != nil {
+		var validationErr *habit.ValidationError
+		if errors.As(err, &validationErr) {
+			return echo.NewHTTPError(http.StatusBadRequest, validationErr.Error())
+		}
 		return fmt.Errorf("create habit: %w", err)
 	}
 
 	return ctx.NoContent(http.StatusCreated)
+}
+
+// UpdateHabit renames, archives, or restores a habit.
+// @Summary Update a habit
+// @Description Partially updates a habit owned by the authenticated user. Send name to rename it (trimmed, must be nonblank) and/or archived to archive (true) or restore (false) it. Omitted fields are unchanged; at least one field is required. Repeating a request is harmless. Returns an empty body on success.
+// @Tags Habits
+// @Accept json
+// @Produce json
+// @Param id path string true "Habit ID" format(uuid)
+// @Param habit body UpdateHabitRequestDTO true "Fields to change"
+// @Success 204 "Habit updated; empty body"
+// @Failure 400 {object} errorResponseDTO "Invalid request body, habit ID, or name, or no fields to change"
+// @Failure 404 {object} errorResponseDTO "Habit not found"
+// @Security BearerAuth
+// @Failure 401 {object} errorResponseDTO "Authentication required"
+// @Failure 500 {object} errorResponseDTO "Unexpected server error"
+// @Router /habits/{id} [patch]
+func (h *HabitHandler) UpdateHabit(ctx *echo.Context) error {
+	var req UpdateHabitRequestDTO
+	if err := ctx.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
+	}
+
+	update := habit.Update{Name: req.Name, Archived: req.Archived}
+	err := h.habits.Update(ctx.Request().Context(), authenticatedUser(ctx), ctx.Param("id"), update)
+	if err != nil {
+		if errors.Is(err, habit.ErrNotFound) {
+			return echo.NewHTTPError(http.StatusNotFound, habit.ErrNotFound.Error())
+		}
+		var validationErr *habit.ValidationError
+		if errors.As(err, &validationErr) {
+			return echo.NewHTTPError(http.StatusBadRequest, validationErr.Error())
+		}
+		return fmt.Errorf("update habit: %w", err)
+	}
+
+	return ctx.NoContent(http.StatusNoContent)
 }
 
 // CreateHabitEntries records one daily entry for a habit.

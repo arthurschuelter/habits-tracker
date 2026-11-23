@@ -26,6 +26,15 @@ type CreateHabitRequestDTO struct {
 	Description string `json:"description" example:"Read for 20 minutes"`
 }
 
+// UpdateHabitRequestDTO is a partial update; omitted fields are unchanged.
+// At least one field is required.
+type UpdateHabitRequestDTO struct {
+	// New name; trimmed and must be nonblank when present.
+	Name *string `json:"name" minLength:"1" example:"Read before bed" extensions:"x-nullable"`
+	// true archives the habit; false restores it.
+	Archived *bool `json:"archived" example:"true" extensions:"x-nullable"`
+}
+
 type CreateEntryRequestRequestDTO struct {
 	HabitID string `json:"habit_id" binding:"required" format:"uuid" example:"11111111-1111-1111-1111-111111111111"`
 	// Optional YYYY-MM-DD date. Omitted or blank values use the server's current date.

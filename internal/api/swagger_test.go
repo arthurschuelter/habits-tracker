@@ -70,6 +70,13 @@ func TestSwaggerSpecification(t *testing.T) {
 			continue
 		}
 		path := strings.TrimPrefix(route.Path, doc.BasePath)
+		segments := strings.Split(path, "/")
+		for i, segment := range segments {
+			if name, ok := strings.CutPrefix(segment, ":"); ok {
+				segments[i] = "{" + name + "}" // Echo :param -> Swagger {param}
+			}
+		}
+		path = strings.Join(segments, "/")
 		require.Contains(t, doc.Paths, path, route.Path)
 		require.Contains(t, doc.Paths[path], strings.ToLower(route.Method), route.Path)
 	}
@@ -81,6 +88,15 @@ func TestSwaggerSpecification(t *testing.T) {
 	for _, status := range []string{"400", "404", "409", "500"} {
 		require.Contains(t, doc.Paths["/habit_entries"]["post"].Responses, status)
 	}
+
+	update := doc.Paths["/habits/{id}"]["patch"].Responses
+	for _, status := range []string{"204", "400", "401", "404", "500"} {
+		require.Contains(t, update, status)
+	}
+	require.Empty(t, update["204"].Schema, "update returns an empty body")
+	updateRequest := doc.Definitions["api.UpdateHabitRequestDTO"]
+	require.Empty(t, updateRequest.Required, "update fields are individually optional")
+	require.Equal(t, "boolean", updateRequest.Properties["archived"].Type)
 
 	habitRequest := doc.Definitions["api.CreateHabitRequestDTO"]
 	require.ElementsMatch(t, []string{"name"}, habitRequest.Required)
