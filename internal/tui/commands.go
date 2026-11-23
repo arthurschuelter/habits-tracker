@@ -87,7 +87,7 @@ func (m Model) refreshHabits() (Model, tea.Cmd) {
 	}
 	m.loading = true
 	m.fetchErr = nil
-	if m.screen == screenFetchHabits {
+	if m.screen == screenHabitActivity {
 		m.syncHabitsDashboard()
 	}
 	return m, m.fetchHabits()

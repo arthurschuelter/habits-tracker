@@ -8,8 +8,8 @@ import (
 
 func (m Model) View() tea.View {
 	var view tea.View
-	if m.screen == screenFetchHabits {
-		view = m.fetchHabitsView()
+	if m.screen == screenHabitActivity {
+		view = m.habitActivityView()
 	} else {
 		view = m.standardView()
 	}

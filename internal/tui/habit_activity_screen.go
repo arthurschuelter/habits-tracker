@@ -67,7 +67,7 @@ func (m *Model) syncHabitsDashboard() {
 	m.dashboard.viewport.SetContent(content)
 }
 
-func (m Model) updateFetchHabits(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) updateHabitActivity(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if _, ok := msg.(tea.WindowSizeMsg); ok {
 		m.syncHabitsDashboard()
 	}
@@ -100,7 +100,7 @@ func (m Model) updateFetchHabits(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m Model) fetchHabitsView() tea.View {
+func (m Model) habitActivityView() tea.View {
 	header, footer := m.dashboardFrame()
 	return tea.NewView(header + m.dashboard.viewport.View() + footer)
 }

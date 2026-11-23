@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFetchHabitsDashboard(t *testing.T) {
+func TestHabitActivityDashboard(t *testing.T) {
 	today := time.Now()
 	want := []habitclient.Habit{
 		{ID: "read", Name: "Read", Description: "Read for 20 minutes every day", Streak: 1, HighestStreak: 3,
@@ -28,7 +28,7 @@ func TestFetchHabitsDashboard(t *testing.T) {
 	}))
 	m, _ = updateModel(t, m, tea.WindowSizeMsg{Width: 80, Height: 40})
 	m, fetch := updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
-	require.Equal(t, screenFetchHabits, m.screen)
+	require.Equal(t, screenHabitActivity, m.screen)
 	require.NotNil(t, fetch)
 	require.Zero(t, calls, "Update must only schedule the HTTP call")
 	require.Contains(t, m.View().Content, "Fetching habits...")
@@ -55,11 +55,11 @@ func TestFetchHabitsDashboard(t *testing.T) {
 	require.Equal(t, screenMain, m.screen)
 }
 
-func TestFetchHabitsScrollResizeAndRefresh(t *testing.T) {
+func TestHabitActivityScrollResizeAndRefresh(t *testing.T) {
 	m := newMainModel(habitListerFunc(func(context.Context) ([]habitclient.Habit, error) {
 		return nil, errors.New("API unavailable")
 	}))
-	m, _ = m.navigateTo(screenFetchHabits)
+	m, _ = m.navigateTo(screenHabitActivity)
 	m, _ = updateModel(t, m, habitsFetchedMsg{habits: []habitclient.Habit{
 		{Name: "Read", Description: strings.Repeat("A long description with 日本語 text. ", 8)},
 		{Name: "Study"},
@@ -122,7 +122,7 @@ func TestDashboardReturnKeepsMenuInAlternateScreen(t *testing.T) {
 		require.True(t, m.View().AltScreen)
 		m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
 		m, _ = updateModel(t, m, habitsFetchedMsg{habits: []habitclient.Habit{{Name: "Read"}}})
-		require.Equal(t, screenFetchHabits, m.screen)
+		require.Equal(t, screenHabitActivity, m.screen)
 		require.True(t, m.View().AltScreen)
 		require.Equal(t, m.height, lipgloss.Height(m.View().Content))
 		m, _ = updateModel(t, m, tea.KeyPressMsg{Code: back})

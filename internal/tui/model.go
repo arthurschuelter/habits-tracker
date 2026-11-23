@@ -50,7 +50,7 @@ func New(authenticate func(context.Context, string, string) (HabitClient, error)
 		width:        64,
 		height:       24,
 		menuOptions: []string{
-			"Fetch habits",
+			"Habit activity",
 			"Manage habits",
 			"Add habit entry",
 		},
@@ -139,7 +139,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			}
 		}
-		if m.screen == screenFetchHabits {
+		if m.screen == screenHabitActivity {
 			m.syncHabitsDashboard()
 		}
 		return m, nil
@@ -151,8 +151,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.screen == screenTrackHabit {
 		return m.updateCreateHabitEntry(msg)
 	}
-	if m.screen == screenFetchHabits {
-		return m.updateFetchHabits(msg)
+	if m.screen == screenHabitActivity {
+		return m.updateHabitActivity(msg)
 	}
 	if m.screen == screenManageHabits {
 		return m.updateManageHabits(msg)

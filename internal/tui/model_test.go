@@ -148,7 +148,7 @@ func TestRefreshFailureAndRetry(t *testing.T) {
 }
 
 func TestQuitFromBrowsingScreens(t *testing.T) {
-	for _, screen := range []screen{screenMain, screenManageHabits, screenFetchHabits} {
+	for _, screen := range []screen{screenMain, screenManageHabits, screenHabitActivity} {
 		for _, key := range []tea.KeyPressMsg{{Code: 'q'}, {Code: 'c', Mod: tea.ModCtrl}} {
 			m := newMainModel(nil)
 			m.screen = screen

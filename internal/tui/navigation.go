@@ -6,7 +6,7 @@ type screen int
 
 const (
 	screenMain screen = iota
-	screenFetchHabits
+	screenHabitActivity
 	screenManageHabits
 	screenTrackHabit
 	screenCreateNewHabit
@@ -29,7 +29,7 @@ func (m Model) navigateTo(next screen) (Model, tea.Cmd) {
 		m.form.description.Blur()
 	}
 	m.screen = next
-	if next == screenFetchHabits {
+	if next == screenHabitActivity {
 		m.dashboard = newHabitsDashboard()
 		m.syncHabitsDashboard()
 		return m.refreshHabits()
