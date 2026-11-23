@@ -133,6 +133,59 @@ func TestDashboardReturnKeepsMenuInAlternateScreen(t *testing.T) {
 	}
 }
 
+func TestHabitActivitySelectionOpensDetail(t *testing.T) {
+	today := time.Now().Format(time.DateOnly)
+	habits := []habitclient.Habit{
+		{ID: "read", Name: "Read"},
+		{ID: "study", Name: "Study", Description: "Practice Go", Streak: 2, HighestStreak: 5, Entries: []habitclient.HabitEntry{
+			{Date: today, Duration: 25}, {Date: "2026-01-05", Duration: 0},
+		}},
+	}
+	m := newMainModel(habitListerFunc(func(context.Context) ([]habitclient.Habit, error) { return habits, nil }))
+	m, _ = updateModel(t, m, tea.WindowSizeMsg{Width: 80, Height: 40})
+	m, fetch := updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	m, _ = updateModel(t, m, fetch())
+	require.Contains(t, ansi.Strip(m.View().Content), "› Read")
+
+	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: 'j'})
+	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: 'j'})
+	require.Equal(t, 1, m.dashboard.cursor, "selection stops at the last habit")
+	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyLeft})
+	view := ansi.Strip(m.View().Content)
+	require.Contains(t, view, "› Study")
+	require.NotContains(t, view, "› Read")
+
+	m, cmd := updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	require.Nil(t, cmd)
+	require.Equal(t, screenHabitDetail, m.screen)
+	view = strings.Join(strings.Fields(ansi.Strip(m.View().Content)), " ")
+	for _, text := range []string{"Study", "Practice Go", "Current streak: 2 days · Highest streak: 5 days",
+		"2 entries · 25 min total", "1 entry · 25 min", "25 min", "Mon Jan 05 no minutes recorded",
+		"Jan 05 – Jan 11, 2026", "b/esc: back to activity"} {
+		require.Contains(t, view, text)
+	}
+
+	// Refreshing from detail keeps the detail open and follows the habit by ID.
+	habits = []habitclient.Habit{{ID: "study", Name: "Study", Entries: habits[1].Entries}, {ID: "read", Name: "Read"}}
+	m, fetch = updateModel(t, m, tea.KeyPressMsg{Code: 'r'})
+	require.Contains(t, m.View().Content, "Fetching habits...")
+	m, _ = updateModel(t, m, fetch())
+	require.Equal(t, screenHabitDetail, m.screen)
+	require.Equal(t, 0, m.dashboard.cursor, "selection follows the habit after reordering")
+
+	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEscape})
+	require.Equal(t, screenHabitActivity, m.screen)
+	require.Equal(t, time.Now().AddDate(0, 0, -activityDays).Format(time.DateOnly), m.dashboard.end.Format(time.DateOnly),
+		"returning keeps the activity date range")
+	require.Contains(t, ansi.Strip(m.View().Content), "› Study")
+
+	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	m, _ = updateModel(t, m, habitsFetchedMsg{habits: []habitclient.Habit{{ID: "read", Name: "Read"}}})
+	require.Contains(t, m.View().Content, "no longer among your active habits")
+	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: 'b'})
+	require.Equal(t, 0, m.dashboard.cursor)
+}
+
 func TestHabitActivityKeepsSelectionVisible(t *testing.T) {
 	habits := make([]habitclient.Habit, 6)
 	for i := range habits {
@@ -152,4 +205,52 @@ func TestHabitActivityKeepsSelectionVisible(t *testing.T) {
 		require.Contains(t, ansi.Strip(m.View().Content), fmt.Sprintf("› Habit %d", i))
 	}
 	require.Zero(t, m.dashboard.viewport.YOffset())
+}
+
+func TestHabitDetailFitsTerminal(t *testing.T) {
+	entries := make([]habitclient.HabitEntry, 40)
+	for i := range entries {
+		entries[i] = habitclient.HabitEntry{Date: time.Now().AddDate(0, 0, -i).Format(time.DateOnly), Duration: i}
+	}
+	m := newMainModel(nil)
+	m.habitsList = []habitclient.Habit{{ID: "read", Name: "Read", Description: strings.Repeat("Long 日本語 description. ", 6), Entries: entries}}
+	m = m.openHabitDetail("read")
+	for _, size := range []tea.WindowSizeMsg{{Width: 80, Height: 24}, {Width: 32, Height: 20}, {Width: 16, Height: 18}} {
+		m, _ = updateModel(t, m, size)
+		view := m.View().Content
+		require.LessOrEqual(t, lipgloss.Width(view), size.Width)
+		require.LessOrEqual(t, lipgloss.Height(view), size.Height)
+		require.Contains(t, strings.Join(strings.Fields(ansi.Strip(view)), " "), "q: exit")
+	}
+	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyPgDown})
+	require.Positive(t, m.detail.viewport.YOffset())
+}
+
+func TestRenderEntryWeeks(t *testing.T) {
+	weeks := ansi.Strip(renderEntryWeeks([]habitclient.HabitEntry{
+		{Date: "2026-11-16", Duration: 10},
+		{Date: "2026-11-23", Duration: 20},           // Monday starts a new week.
+		{Date: "2026-11-22T00:00:00Z", Duration: 30}, // Sunday ends the previous one.
+		{Date: "2026-11-18", Duration: 0},            // Legacy entry without minutes.
+		{Date: "2025-12-30", Duration: 15},
+		{Date: "2026-01-02", Duration: 5},
+		{Date: "bad date", Duration: 50},
+	}))
+	require.Equal(t, `Nov 23 – Nov 29, 2026
+1 entry · 20 min
+  Mon Nov 23  20 min
+
+Nov 16 – Nov 22, 2026
+3 entries · 40 min
+  Sun Nov 22  30 min
+  Wed Nov 18  no minutes recorded
+  Mon Nov 16  10 min
+
+Dec 29, 2025 – Jan 04, 2026
+2 entries · 20 min
+  Fri Jan 02  5 min
+  Tue Dec 30  15 min
+
+1 entry has an unreadable date.`, weeks)
+	require.Equal(t, "No entries yet. Log one from Add habit entry.", renderEntryWeeks(nil))
 }

@@ -17,15 +17,22 @@ var (
 	activityColors    = []string{"#585B70", "#6A9F8B", "#89DCAA", "#C2F5B0"}
 )
 
-// entryDays preserves the recorded calendar date, including older RFC3339 responses.
+// entryDate preserves the recorded calendar date, including older RFC3339 responses.
+func entryDate(value string) (time.Time, bool) {
+	date, err := time.Parse(time.DateOnly, value)
+	if err != nil {
+		date, err = time.Parse(time.RFC3339, value)
+	}
+	if err != nil {
+		return time.Time{}, false
+	}
+	return time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC), true
+}
+
 func entryDays(entries []habitclient.HabitEntry) map[string]int {
 	days := make(map[string]int, len(entries))
 	for _, entry := range entries {
-		date, err := time.Parse(time.DateOnly, entry.Date)
-		if err != nil {
-			date, err = time.Parse(time.RFC3339, entry.Date)
-		}
-		if err == nil {
+		if date, ok := entryDate(entry.Date); ok {
 			days[date.Format(time.DateOnly)] += entry.Duration
 		}
 	}

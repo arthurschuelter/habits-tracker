@@ -7,6 +7,7 @@ type screen int
 const (
 	screenMain screen = iota
 	screenHabitActivity
+	screenHabitDetail
 	screenManageHabits
 	screenTrackHabit
 	screenCreateNewHabit

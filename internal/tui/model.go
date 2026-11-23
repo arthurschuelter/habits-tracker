@@ -31,6 +31,7 @@ type Model struct {
 	form         habitForm
 	entryForm    habitEntryForm
 	dashboard    habitsDashboard
+	detail       habitDetail
 	manage       manageHabits
 	notice       string
 	cursor       int
@@ -54,6 +55,16 @@ func New(authenticate func(context.Context, string, string) (HabitClient, error)
 			"Manage habits",
 			"Add habit entry",
 		},
+	}
+}
+
+// syncHabitScreens re-renders the activity or detail screen after shared habit data changes.
+func (m *Model) syncHabitScreens() {
+	switch m.screen {
+	case screenHabitActivity:
+		m.syncHabitsDashboard()
+	case screenHabitDetail:
+		m.syncHabitDetail()
 	}
 }
 
@@ -140,9 +151,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			}
 		}
-		if m.screen == screenHabitActivity {
-			m.syncHabitsDashboard()
-		}
+		m.syncHabitScreens()
 		return m, nil
 	}
 
@@ -154,6 +163,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if m.screen == screenHabitActivity {
 		return m.updateHabitActivity(msg)
+	}
+	if m.screen == screenHabitDetail {
+		return m.updateHabitDetail(msg)
 	}
 	if m.screen == screenManageHabits {
 		return m.updateManageHabits(msg)

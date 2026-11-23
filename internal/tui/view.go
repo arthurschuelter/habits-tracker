@@ -10,6 +10,8 @@ func (m Model) View() tea.View {
 	var view tea.View
 	if m.screen == screenHabitActivity {
 		view = m.habitActivityView()
+	} else if m.screen == screenHabitDetail {
+		view = m.habitDetailView()
 	} else {
 		view = m.standardView()
 	}

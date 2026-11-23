@@ -50,9 +50,9 @@ func (m Model) dashboardFrame() (string, string) {
 		header += wrap.Render("Could not refresh habits: "+m.fetchErr.Error()) + "\n"
 	}
 	legend := "□ no entry  ▪ <15m  ■ 15-29m  ★ 30m+  [ ] today"
-	controls := "↑/↓ j/k: select · pgup/pgdown: scroll · ←/→: dates · t: today"
+	controls := "↑/↓ j/k: select · enter: details · pgup/pgdown: scroll · ←/→: dates · t: today"
 	if width < 50 {
-		controls = "↑/↓: select · ←/→: dates · t: today"
+		controls = "↑/↓: select · enter: details · ←/→: dates · t: today"
 	}
 	if width < 24 {
 		legend = "□ none · ▪/■/★ logged · [ ] today"
@@ -124,6 +124,11 @@ func (m Model) updateHabitActivity(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.syncHabitsDashboard()
 			m.scrollToSelectedCard()
+			return m, nil
+		case "enter", "space":
+			if m.dashboard.cursor < len(m.habitsList) {
+				return m.openHabitDetail(m.habitsList[m.dashboard.cursor].ID), nil
+			}
 			return m, nil
 		case "left", "h", "right", "l", "t":
 			switch key.String() {
