@@ -19,8 +19,10 @@ type HabitClient interface {
 
 type Model struct {
 	authenticate func(context.Context, string, string) (HabitClient, error)
+	register     func(ctx context.Context, username, email, password string) error
 	session      uint64
 	login        loginForm
+	signup       registerForm
 	startCursor  tea.Cmd
 	client       HabitClient
 	menuOptions  []menuOption
@@ -40,12 +42,18 @@ type Model struct {
 	height       int
 }
 
-func New(authenticate func(context.Context, string, string) (HabitClient, error)) Model {
+// New starts at sign-in. authenticate signs in and returns a session client;
+// register creates an account without signing in.
+func New(
+	authenticate func(context.Context, string, string) (HabitClient, error),
+	register func(ctx context.Context, username, email, password string) error,
+) Model {
 	login := newLoginForm(64)
 	startCursor := login.username.Focus()
 	return Model{
 		startCursor:  startCursor,
 		authenticate: authenticate,
+		register:     register,
 		screen:       screenLogin,
 		login:        login,
 		dashboard:    newHabitsDashboard(),
@@ -81,6 +89,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if m.screen == screenLogin {
 		return m.updateLogin(msg)
+	}
+	if m.screen == screenRegister {
+		return m.updateRegister(msg)
 	}
 	if result, ok := msg.(habitEntryCreatedMsg); ok {
 		if result.session != m.session {

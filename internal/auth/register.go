@@ -32,9 +32,10 @@ type Registration struct {
 	Password string
 }
 
-// normalizeRegistration trims the username and email and lowercases the email.
-// The password is used exactly as given.
-func normalizeRegistration(r Registration) (Registration, error) {
+// NormalizeRegistration trims the username and email, lowercases the email,
+// and checks each field in form order. The password is used exactly as given.
+// Clients may call it for early feedback; Register remains authoritative.
+func NormalizeRegistration(r Registration) (Registration, error) {
 	r.Username = strings.TrimSpace(r.Username)
 	switch {
 	case r.Username == "":
@@ -54,12 +55,12 @@ func normalizeRegistration(r Registration) (Registration, error) {
 	if err != nil || address.Address != r.Email || len(r.Email) > maxEmailBytes {
 		return r, &ValidationError{Field: "email", Message: "must be a valid email address"}
 	}
-	return r, nil
+	return r, ValidatePassword([]byte(r.Password))
 }
 
 // Register creates an account that can sign in with Login.
 func (s *Service) Register(ctx context.Context, r Registration) error {
-	r, err := normalizeRegistration(r)
+	r, err := NormalizeRegistration(r)
 	if err != nil {
 		return err
 	}

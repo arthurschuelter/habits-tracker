@@ -13,6 +13,7 @@ const (
 	screenCreateNewHabit
 	screenLogin
 	screenToday
+	screenRegister
 )
 
 func (m Model) navigateTo(next screen) (Model, tea.Cmd) {

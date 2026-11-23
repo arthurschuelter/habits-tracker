@@ -20,7 +20,7 @@ func TestLoginMasksPasswordAndOpensMenuOnSuccess(t *testing.T) {
 			return nil, habitclient.ErrInvalidCredentials
 		}
 		return habitListerFunc(nil), nil
-	})
+	}, nil)
 	require.Equal(t, screenLogin, m.screen)
 	m, _ = updateModel(t, m, tea.PasteMsg{Content: "development"})
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})

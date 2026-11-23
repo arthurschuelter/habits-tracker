@@ -1,7 +1,7 @@
 # Todo list
 
-## UI
-- [ ] User registration form
+## TUI
+- [x] User registration form
 - [ ] 'Forgot password' screen
 
 ### Main menu and screens

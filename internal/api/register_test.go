@@ -59,6 +59,17 @@ func TestRegister(t *testing.T) {
 	require.NoError(t, err, "a registered user can sign in")
 	require.NotNil(t, signedIn)
 
+	// The terminal client maps the server's responses.
+	client := habitclient.New(server.URL+"/api/v2", server.Client())
+	require.NoError(t, client.Register(ctx, "jo", "jo@example.com", password))
+	_, err = client.Login(ctx, "jo", password)
+	require.NoError(t, err)
+	err = client.Register(ctx, "jo2", "JO@example.com", password)
+	require.ErrorIs(t, err, habitclient.ErrAccountTaken)
+	require.EqualError(t, err, "Another account already uses that email.")
+	require.EqualError(t, client.Register(ctx, "jo3", "jo3@example.com", "short"),
+		"Password: must contain at least 8 characters and at most 1024 bytes.")
+
 	before := users()
 	for _, tt := range []struct {
 		name, body string

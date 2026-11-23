@@ -23,11 +23,19 @@ const (
 
 var errPasswordRule = &ValidationError{Field: "password", Message: "must contain at least 8 characters and at most 1024 bytes"}
 
-// HashPassword returns a *ValidationError for passwords that break the length rules.
-func HashPassword(password []byte) (string, error) {
+// ValidatePassword returns a *ValidationError for passwords that break the length rules.
+func ValidatePassword(password []byte) error {
 	if !utf8.Valid(password) || len(password) > maxPasswordBytes ||
 		utf8.RuneCount(password) < 8 || strings.TrimSpace(string(password)) == "" {
-		return "", errPasswordRule
+		return errPasswordRule
+	}
+	return nil
+}
+
+// HashPassword returns a *ValidationError for passwords that break the length rules.
+func HashPassword(password []byte) (string, error) {
+	if err := ValidatePassword(password); err != nil {
+		return "", err
 	}
 	var salt [saltSize]byte
 	_, _ = rand.Read(salt[:])

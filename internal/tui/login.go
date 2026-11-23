@@ -12,7 +12,7 @@ import (
 
 const (
 	loginTitle = "Habits Tracker · Sign in"
-	loginHelp  = "\ntab: change field • enter: continue / sign in • esc: exit"
+	loginHelp  = "\ntab: change field • enter: continue / sign in • ctrl+n: create account • esc: exit"
 )
 
 type loginForm struct {
@@ -69,6 +69,8 @@ func (m Model) updateLogin(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if !m.login.pending {
 			switch v.String() {
+			case "ctrl+n":
+				return m.openRegister()
 			case "tab", "shift+tab":
 				if m.login.password.Focused() {
 					m.login.password.Blur()
@@ -143,6 +145,7 @@ func (m Model) endSession() (Model, tea.Cmd) {
 	m.today = todayScreen{}
 	m.loading = false
 	m.fetchErr = nil
+	m.signup = registerForm{}
 	m.login = newLoginForm(m.width)
 	m.login.err = habitclient.ErrSessionExpired
 	cmd := m.login.username.Focus()
