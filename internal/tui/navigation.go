@@ -14,6 +14,7 @@ const (
 	screenLogin
 	screenToday
 	screenRegister
+	screenForgotPassword
 )
 
 func (m Model) navigateTo(next screen) (Model, tea.Cmd) {

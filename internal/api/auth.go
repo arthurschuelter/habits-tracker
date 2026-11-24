@@ -23,6 +23,16 @@ type registerRequestDTO struct {
 	Password string `json:"password" binding:"required" format:"password" minLength:"8"`
 }
 
+type forgotPasswordRequestDTO struct {
+	Email string `json:"email" binding:"required" format:"email" example:"alex@example.com"`
+}
+
+type resetPasswordRequestDTO struct {
+	Email    string `json:"email" binding:"required" format:"email" example:"alex@example.com"`
+	Code     string `json:"code" binding:"required" example:"K3QZ7WMA"`
+	Password string `json:"password" binding:"required" format:"password" minLength:"8"`
+}
+
 type loginResponseDTO struct {
 	Token string `json:"token"`
 }
@@ -44,6 +54,81 @@ func (h *AuthHandler) Routes(e *echo.Echo) {
 	})
 	e.POST("/api/v2/login", h.Login, limit, middleware.BodyLimit(8*1024))
 	e.POST("/api/v2/register", h.Register, limit, middleware.BodyLimit(8*1024))
+	e.POST("/api/v2/forgot-password", h.ForgotPassword, limit, middleware.BodyLimit(8*1024))
+	e.POST("/api/v2/reset-password", h.ResetPassword, limit, middleware.BodyLimit(8*1024))
+}
+
+// ForgotPassword issues a password reset code.
+// @Summary Request a password reset code
+// @Description Create a one-time reset code for the account with this email, replacing any earlier code. The response is the same whether or not the account exists. Codes expire after 15 minutes. Email delivery is not implemented yet: the API writes the code to its log. Use the code with POST /reset-password.
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body forgotPasswordRequestDTO true "Account email"
+// @Success 202 "Reset code issued if the account exists"
+// @Failure 400 {object} errorResponseDTO "Invalid request body or email"
+// @Failure 413 {object} errorResponseDTO "Request body too large"
+// @Failure 429 {object} errorResponseDTO "Too many attempts"
+// @Failure 500 {object} errorResponseDTO "Unexpected server error"
+// @Router /forgot-password [post]
+func (h *AuthHandler) ForgotPassword(c *echo.Context) error {
+	var req forgotPasswordRequestDTO
+	if err := bindAuthRequest(c, &req); err != nil {
+		return err
+	}
+	err := h.service.ForgotPassword(c.Request().Context(), req.Email)
+	var validationErr *auth.ValidationError
+	switch {
+	case errors.As(err, &validationErr):
+		return echo.NewHTTPError(http.StatusBadRequest, validationErr.Error())
+	case err != nil:
+		return fmt.Errorf("forgot password: %w", err)
+	}
+	return c.NoContent(http.StatusAccepted)
+}
+
+// ResetPassword sets a new password using a reset code.
+// @Summary Reset password
+// @Description Choose a new password with the email and a code from POST /forgot-password. Passwords need at least 8 characters and at most 1024 bytes. The code works once, and resetting signs out the account's current session. Sign in with POST /login afterwards.
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body resetPasswordRequestDTO true "Email, reset code, and new password"
+// @Success 204 "Password changed"
+// @Failure 400 {object} errorResponseDTO "Invalid request body, field, or reset code"
+// @Failure 413 {object} errorResponseDTO "Request body too large"
+// @Failure 429 {object} errorResponseDTO "Too many attempts"
+// @Failure 500 {object} errorResponseDTO "Unexpected server error"
+// @Router /reset-password [post]
+func (h *AuthHandler) ResetPassword(c *echo.Context) error {
+	var req resetPasswordRequestDTO
+	if err := bindAuthRequest(c, &req); err != nil {
+		return err
+	}
+	err := h.service.ResetPassword(c.Request().Context(), req.Email, req.Code, req.Password)
+	var validationErr *auth.ValidationError
+	switch {
+	case errors.As(err, &validationErr):
+		return echo.NewHTTPError(http.StatusBadRequest, validationErr.Error())
+	case errors.Is(err, auth.ErrResetCode):
+		return echo.NewHTTPError(http.StatusBadRequest, auth.ErrResetCode.Error())
+	case errors.Is(err, auth.ErrBusy):
+		return echo.NewHTTPError(http.StatusTooManyRequests, auth.ErrBusy.Error())
+	case err != nil:
+		return fmt.Errorf("reset password: %w", err)
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
+func bindAuthRequest(c *echo.Context, req any) error {
+	if err := c.Bind(req); err != nil {
+		var httpErr *echo.HTTPError
+		if errors.As(err, &httpErr) && httpErr.Code == http.StatusRequestEntityTooLarge {
+			return err
+		}
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
+	}
+	return nil
 }
 
 // Register creates an account.

@@ -191,7 +191,7 @@ func selectMenuOption(t *testing.T, m Model, label string) Model {
 }
 
 func newMainModel(client HabitClient) Model {
-	m := New(nil, nil)
+	m := New(nil, nil, nil)
 	m.screen = screenMain
 	m.client = client
 	return m

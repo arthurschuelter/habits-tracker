@@ -46,16 +46,26 @@ func NormalizeRegistration(r Registration) (Registration, error) {
 		return r, &ValidationError{Field: "username", Message: "must not contain control characters"}
 	}
 
-	r.Email = strings.ToLower(strings.TrimSpace(r.Email))
-	address, err := mail.ParseAddress(r.Email)
-	if r.Email == "" {
-		return r, &ValidationError{Field: "email", Message: "is required"}
-	}
-	// Reject display names and other forms that ParseAddress rewrites.
-	if err != nil || address.Address != r.Email || len(r.Email) > maxEmailBytes {
-		return r, &ValidationError{Field: "email", Message: "must be a valid email address"}
+	email, err := normalizeEmail(r.Email)
+	r.Email = email
+	if err != nil {
+		return r, err
 	}
 	return r, ValidatePassword([]byte(r.Password))
+}
+
+// normalizeEmail trims and lowercases an address and checks its format.
+func normalizeEmail(email string) (string, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	address, err := mail.ParseAddress(email)
+	if email == "" {
+		return email, &ValidationError{Field: "email", Message: "is required"}
+	}
+	// Reject display names and other forms that ParseAddress rewrites.
+	if err != nil || address.Address != email || len(email) > maxEmailBytes {
+		return email, &ValidationError{Field: "email", Message: "must be a valid email address"}
+	}
+	return email, nil
 }
 
 // Register creates an account that can sign in with Login.

@@ -26,6 +26,8 @@ func (m Model) standardView() tea.View {
 		title, help, content = loginTitle, loginHelp, m.loginView()
 	case screenRegister:
 		title, help, content = registerTitle, registerHelp, m.registerView()
+	case screenForgotPassword:
+		title, help, content = forgotTitle, m.forgotHelp(), m.forgotView()
 	case screenTrackHabit:
 		title, help, content = createHabitEntryTitle, createHabitEntryHelp, m.createHabitEntryView()
 	case screenCreateNewHabit:

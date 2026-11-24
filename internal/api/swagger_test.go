@@ -101,6 +101,18 @@ func TestSwaggerSpecification(t *testing.T) {
 	for _, status := range []string{"400", "409", "413", "429", "500"} {
 		require.Contains(t, doc.Paths["/register"]["post"].Responses, status)
 	}
+	for path, success := range map[string]string{"/forgot-password": "202", "/reset-password": "204"} {
+		responses := doc.Paths[path]["post"].Responses
+		for _, status := range []string{success, "400", "413", "429", "500"} {
+			require.Contains(t, responses, status, path)
+		}
+		require.Empty(t, responses[success].Schema, path+" returns an empty body")
+	}
+	require.ElementsMatch(t, []string{"email"}, doc.Definitions["api.forgotPasswordRequestDTO"].Required)
+	resetRequest := doc.Definitions["api.resetPasswordRequestDTO"]
+	require.ElementsMatch(t, []string{"email", "code", "password"}, resetRequest.Required)
+	require.Equal(t, "password", resetRequest.Properties["password"].Format)
+
 	registerRequest := doc.Definitions["api.registerRequestDTO"]
 	require.ElementsMatch(t, []string{"username", "email", "password"}, registerRequest.Required)
 	require.Equal(t, "password", registerRequest.Properties["password"].Format)

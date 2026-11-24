@@ -12,7 +12,7 @@ import (
 
 const (
 	loginTitle = "Habits Tracker · Sign in"
-	loginHelp  = "\ntab: change field • enter: continue / sign in • ctrl+n: create account • esc: exit"
+	loginHelp  = "\ntab: change field • enter: continue / sign in • ctrl+n: create account\nctrl+r: forgot password • esc: exit"
 )
 
 type loginForm struct {
@@ -71,6 +71,10 @@ func (m Model) updateLogin(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch v.String() {
 			case "ctrl+n":
 				return m.openRegister()
+			case "ctrl+r":
+				if m.resets != nil {
+					return m.openForgotPassword()
+				}
 			case "tab", "shift+tab":
 				if m.login.password.Focused() {
 					m.login.password.Blur()
@@ -164,6 +168,7 @@ func (m Model) clearSession() (Model, tea.Cmd) {
 	m.fetchErr = nil
 	m.cursor = 0
 	m.signup = registerForm{}
+	m.forgot = forgotForm{}
 	m.login = newLoginForm(m.width)
 	cmd := m.login.username.Focus()
 	m, _ = m.navigateTo(screenLogin)

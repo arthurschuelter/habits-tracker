@@ -19,7 +19,7 @@ type registerCall struct{ username, email, password string }
 func openRegisterScreen(t *testing.T, authenticate func(context.Context, string, string) (HabitClient, error),
 	register func(context.Context, string, string, string) error) Model {
 	t.Helper()
-	m := New(authenticate, register)
+	m := New(authenticate, register, nil)
 	m, _ = updateModel(t, m, tea.PasteMsg{Content: "alex"})
 	require.Contains(t, m.View().Content, "ctrl+n: create account")
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl})

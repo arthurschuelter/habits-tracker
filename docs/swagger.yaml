@@ -52,6 +52,15 @@ definitions:
         example: invalid request body
         type: string
     type: object
+  api.forgotPasswordRequestDTO:
+    properties:
+      email:
+        example: alex@example.com
+        format: email
+        type: string
+    required:
+    - email
+    type: object
   api.habitEntryResponseDTO:
     properties:
       date:
@@ -140,6 +149,24 @@ definitions:
     - password
     - username
     type: object
+  api.resetPasswordRequestDTO:
+    properties:
+      code:
+        example: K3QZ7WMA
+        type: string
+      email:
+        example: alex@example.com
+        format: email
+        type: string
+      password:
+        format: password
+        minLength: 8
+        type: string
+    required:
+    - code
+    - email
+    - password
+    type: object
 info:
   contact: {}
   description: Create habits, list habits with daily entries and streaks, and record
@@ -161,6 +188,45 @@ paths:
       summary: Get the API greeting
       tags:
       - General
+  /forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: 'Create a one-time reset code for the account with this email,
+        replacing any earlier code. The response is the same whether or not the account
+        exists. Codes expire after 15 minutes. Email delivery is not implemented yet:
+        the API writes the code to its log. Use the code with POST /reset-password.'
+      parameters:
+      - description: Account email
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.forgotPasswordRequestDTO'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Reset code issued if the account exists
+        "400":
+          description: Invalid request body or email
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+        "413":
+          description: Request body too large
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+        "429":
+          description: Too many attempts
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+        "500":
+          description: Unexpected server error
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+      summary: Request a password reset code
+      tags:
+      - Authentication
   /habit_entries:
     post:
       consumes:
@@ -414,6 +480,45 @@ paths:
           schema:
             $ref: '#/definitions/api.errorResponseDTO'
       summary: Register
+      tags:
+      - Authentication
+  /reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Choose a new password with the email and a code from POST /forgot-password.
+        Passwords need at least 8 characters and at most 1024 bytes. The code works
+        once, and resetting signs out the account's current session. Sign in with
+        POST /login afterwards.
+      parameters:
+      - description: Email, reset code, and new password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.resetPasswordRequestDTO'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Password changed
+        "400":
+          description: Invalid request body, field, or reset code
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+        "413":
+          description: Request body too large
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+        "429":
+          description: Too many attempts
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+        "500":
+          description: Unexpected server error
+          schema:
+            $ref: '#/definitions/api.errorResponseDTO'
+      summary: Reset password
       tags:
       - Authentication
 securityDefinitions:

@@ -20,7 +20,7 @@ func TestLoginMasksPasswordAndOpensMenuOnSuccess(t *testing.T) {
 			return nil, habitclient.ErrInvalidCredentials
 		}
 		return habitListerFunc(nil), nil
-	}, nil)
+	}, nil, nil)
 	require.Equal(t, screenLogin, m.screen)
 	m, _ = updateModel(t, m, tea.PasteMsg{Content: "development"})
 	m, _ = updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -54,7 +54,7 @@ func TestSignOutFromMainMenu(t *testing.T) {
 	m := New(func(context.Context, string, string) (HabitClient, error) {
 		signIns++
 		return habitListerFunc(func(context.Context) ([]habitclient.Habit, error) { return nil, nil }), nil
-	}, nil)
+	}, nil, nil)
 	m.screen = screenMain
 	m.client = habitListerFunc(func(context.Context) ([]habitclient.Habit, error) {
 		return []habitclient.Habit{{ID: "read", Name: "Private habit"}}, nil

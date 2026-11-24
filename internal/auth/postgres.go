@@ -26,7 +26,8 @@ func (r *PostgresRepo) SetPassword(ctx context.Context, email string, password [
 		return err
 	}
 	result, err := r.db.ExecContext(ctx, `
-		UPDATE users SET password_hash = $2, session_token_hash = NULL, session_expires_at = NULL
+		UPDATE users SET password_hash = $2, session_token_hash = NULL, session_expires_at = NULL,
+			password_reset_code_hash = NULL, password_reset_expires_at = NULL
 		WHERE email = $1`, email, hash)
 	if err != nil {
 		var pgErr *pq.Error
@@ -92,6 +93,38 @@ func (r *PostgresRepo) sessionUser(ctx context.Context, hash [32]byte) (string, 
 		return "", fmt.Errorf("look up login session: %w", err)
 	}
 	return id, nil
+}
+
+// saveResetCode reports false, without error, when no account with a
+// password uses this email.
+func (r *PostgresRepo) saveResetCode(ctx context.Context, email string, hash [32]byte, lifetime time.Duration) (bool, error) {
+	result, err := r.db.ExecContext(ctx, `
+		UPDATE users SET password_reset_code_hash = $2,
+			password_reset_expires_at = CURRENT_TIMESTAMP + $3 * INTERVAL '1 second'
+		WHERE email = $1 AND password_hash IS NOT NULL`, email, hash[:], int64(lifetime/time.Second))
+	if err != nil {
+		return false, fmt.Errorf("save password reset code: %w", err)
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("check password reset code: %w", err)
+	}
+	return n > 0, nil
+}
+
+// resetPassword checks and consumes the code in the same write that replaces
+// the password, so a code works only once.
+func (r *PostgresRepo) resetPassword(ctx context.Context, email string, codeHash [32]byte, passwordHash string) error {
+	result, err := r.db.ExecContext(ctx, `
+		UPDATE users SET password_hash = $3, session_token_hash = NULL, session_expires_at = NULL,
+			password_reset_code_hash = NULL, password_reset_expires_at = NULL
+		WHERE email = $1 AND password_reset_code_hash = $2
+			AND password_reset_expires_at > CURRENT_TIMESTAMP AND password_hash IS NOT NULL`,
+		email, codeHash[:], passwordHash)
+	if err != nil {
+		return fmt.Errorf("reset password: %w", err)
+	}
+	return requireUserUpdate(result, ErrResetCode)
 }
 
 func requireUserUpdate(result sql.Result, missing error) error {

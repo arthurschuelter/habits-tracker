@@ -37,6 +37,61 @@ const docTemplate = `{
                 }
             }
         },
+        "/forgot-password": {
+            "post": {
+                "description": "Create a one-time reset code for the account with this email, replacing any earlier code. The response is the same whether or not the account exists. Codes expire after 15 minutes. Email delivery is not implemented yet: the API writes the code to its log. Use the code with POST /reset-password.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Request a password reset code",
+                "parameters": [
+                    {
+                        "description": "Account email",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.forgotPasswordRequestDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Reset code issued if the account exists"
+                    },
+                    "400": {
+                        "description": "Invalid request body or email",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
+                    "413": {
+                        "description": "Request body too large",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
+                    "429": {
+                        "description": "Too many attempts",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected server error",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    }
+                }
+            }
+        },
         "/habit_entries": {
             "post": {
                 "security": [
@@ -406,6 +461,61 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/reset-password": {
+            "post": {
+                "description": "Choose a new password with the email and a code from POST /forgot-password. Passwords need at least 8 characters and at most 1024 bytes. The code works once, and resetting signs out the account's current session. Sign in with POST /login afterwards.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Reset password",
+                "parameters": [
+                    {
+                        "description": "Email, reset code, and new password",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.resetPasswordRequestDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Password changed"
+                    },
+                    "400": {
+                        "description": "Invalid request body, field, or reset code",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
+                    "413": {
+                        "description": "Request body too large",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
+                    "429": {
+                        "description": "Too many attempts",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected server error",
+                        "schema": {
+                            "$ref": "#/definitions/api.errorResponseDTO"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -475,6 +585,19 @@ const docTemplate = `{
                 "message": {
                     "type": "string",
                     "example": "invalid request body"
+                }
+            }
+        },
+        "api.forgotPasswordRequestDTO": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "alex@example.com"
                 }
             }
         },
@@ -594,6 +717,30 @@ const docTemplate = `{
                 "username": {
                     "type": "string",
                     "example": "alex"
+                }
+            }
+        },
+        "api.resetPasswordRequestDTO": {
+            "type": "object",
+            "required": [
+                "code",
+                "email",
+                "password"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "K3QZ7WMA"
+                },
+                "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "alex@example.com"
+                },
+                "password": {
+                    "type": "string",
+                    "format": "password",
+                    "minLength": 8
                 }
             }
         }
