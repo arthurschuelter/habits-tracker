@@ -14,8 +14,7 @@ const (
 	forgotTitle     = "Habits Tracker · Reset password"
 	forgotEmailHelp = "\nenter: send reset code • esc: back to sign in • ctrl+c: exit"
 	forgotResetHelp = "\ntab/shift+tab: move • enter: next / reset password • ctrl+s: reset password\nesc: back to sign in • ctrl+c: exit"
-	// Email delivery is not implemented yet; the API prints codes to its log.
-	forgotCodeSent = "If an account uses that email, a reset code was issued.\nFor now, the code is printed in the API's terminal."
+	forgotCodeSent  = "If an account uses that email, we sent it a reset code.\nCheck your inbox."
 )
 
 // PasswordResetter requests reset codes and uses them to set a new password.

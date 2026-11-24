@@ -76,6 +76,19 @@ func main() {
 	}
 
 	sessions := auth.NewService(accounts)
+	if host := os.Getenv("SMTP_HOST"); host != "" {
+		mailer := auth.SMTPMailer{Host: host, Port: os.Getenv("SMTP_PORT"), From: os.Getenv("SMTP_FROM"),
+			Username: os.Getenv("SMTP_USERNAME"), Password: os.Getenv("SMTP_PASSWORD")}
+		if mailer.Port == "" {
+			mailer.Port = "587"
+		}
+		if mailer.From == "" {
+			log.Fatal("SMTP_FROM must be set when SMTP_HOST is set")
+		}
+		sessions.Mailer = mailer
+	} else {
+		log.Print("SMTP_HOST not set: password reset codes will be written to the log")
+	}
 	entriesRepo := habit_entry.NewPostgresRepo(db)
 	entriesSvc := habit_entry.NewService(entriesRepo)
 

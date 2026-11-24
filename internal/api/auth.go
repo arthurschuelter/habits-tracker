@@ -60,7 +60,7 @@ func (h *AuthHandler) Routes(e *echo.Echo) {
 
 // ForgotPassword issues a password reset code.
 // @Summary Request a password reset code
-// @Description Create a one-time reset code for the account with this email, replacing any earlier code. The response is the same whether or not the account exists. Codes expire after 15 minutes. Email delivery is not implemented yet: the API writes the code to its log. Use the code with POST /reset-password.
+// @Description Create a one-time reset code for the account with this email, replacing any earlier code. The response is the same whether or not the account exists. Codes expire after 15 minutes. The code is emailed to the account; when the API has no SMTP server configured, it writes the code to its log instead. Use the code with POST /reset-password.
 // @Tags Authentication
 // @Accept json
 // @Produce json

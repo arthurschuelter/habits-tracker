@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base32"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -20,7 +21,8 @@ var resetEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
 
 // ForgotPassword creates a one-time reset code for the account with this
 // email and replaces any earlier code. It succeeds whether or not the account
-// exists. There is no email delivery yet, so the code is written to the API log.
+// exists. The email is sent in the background so the response time does not
+// reveal whether the account exists.
 func (s *Service) ForgotPassword(ctx context.Context, email string) error {
 	email, err := normalizeEmail(email)
 	if err != nil {
@@ -33,7 +35,19 @@ func (s *Service) ForgotPassword(ctx context.Context, email string) error {
 	if err != nil || !found {
 		return err
 	}
-	slog.Info("password reset code issued", "email", email, "code", code, "expires_in", resetLifetime.String())
+	if s.Mailer == nil {
+		slog.Warn("no mailer configured; password reset code written to log", "email", email, "code", code)
+		return nil
+	}
+	body := fmt.Sprintf("Your Habits Tracker password reset code is: %s\n\n"+
+		"Enter it in Habits Tracker to choose a new password. It expires in %d minutes and works once.\n"+
+		"If you did not ask for this, ignore this email; your password has not changed.\n",
+		code, int(resetLifetime/time.Minute))
+	go func() {
+		if err := s.Mailer.Send(email, "Your Habits Tracker reset code", body); err != nil {
+			slog.Error("send password reset email", "error", err)
+		}
+	}()
 	return nil
 }
 

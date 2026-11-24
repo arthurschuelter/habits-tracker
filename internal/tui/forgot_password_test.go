@@ -59,7 +59,7 @@ func TestForgotPasswordFlow(t *testing.T) {
 	m = runCmd(t, m, cmd)
 	require.Equal(t, []string{"alex@example.com"}, resets.forgot)
 	view := m.View().Content
-	require.Contains(t, view, "API's terminal")
+	require.Contains(t, view, "Check your inbox.")
 	require.Contains(t, view, "Reset code")
 	require.Equal(t, forgotCode, m.forgot.focus)
 

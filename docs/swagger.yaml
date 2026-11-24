@@ -192,10 +192,11 @@ paths:
     post:
       consumes:
       - application/json
-      description: 'Create a one-time reset code for the account with this email,
-        replacing any earlier code. The response is the same whether or not the account
-        exists. Codes expire after 15 minutes. Email delivery is not implemented yet:
-        the API writes the code to its log. Use the code with POST /reset-password.'
+      description: Create a one-time reset code for the account with this email, replacing
+        any earlier code. The response is the same whether or not the account exists.
+        Codes expire after 15 minutes. The code is emailed to the account; when the
+        API has no SMTP server configured, it writes the code to its log instead.
+        Use the code with POST /reset-password.
       parameters:
       - description: Account email
         in: body

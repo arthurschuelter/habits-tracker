@@ -9,14 +9,37 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/arthurschuelter/habits-tracker/internal/api"
 	"github.com/arthurschuelter/habits-tracker/internal/auth"
+	"github.com/arthurschuelter/habits-tracker/internal/habit"
+	"github.com/arthurschuelter/habits-tracker/internal/habit_entry"
 	"github.com/arthurschuelter/habits-tracker/internal/habitclient"
 	"github.com/arthurschuelter/habits-tracker/internal/tests"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/require"
 )
+
+// distinctAddressTransport serves requests in-process, giving each a new client address.
+type distinctAddressTransport struct {
+	handler http.Handler
+	n       int
+}
+
+func (t *distinctAddressTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	t.n++
+	req := r.Clone(r.Context())
+	req.RemoteAddr = fmt.Sprintf("203.0.113.%d:1234", t.n)
+	req.RequestURI = r.URL.RequestURI()
+	rec := httptest.NewRecorder()
+	t.handler.ServeHTTP(rec, req)
+	return rec.Result(), nil
+}
+
+type mailerFunc func(to, subject, body string) error
+
+func (f mailerFunc) Send(to, subject, body string) error { return f(to, subject, body) }
 
 func TestPasswordReset(t *testing.T) {
 	db, teardown, err := tests.Setup("../../migrations")
@@ -38,10 +61,14 @@ func TestPasswordReset(t *testing.T) {
 	}
 
 	e := echo.New()
-	api.NewAuthHandler(auth.NewService(auth.NewPostgresRepo(db))).Routes(e)
-	server := httptest.NewServer(e)
-	t.Cleanup(server.Close)
-	client := habitclient.New(server.URL+"/api/v2", server.Client())
+	authService := auth.NewService(auth.NewPostgresRepo(db))
+	api.NewAuthHandler(authService).Routes(e)
+	entries := habit_entry.NewPostgresRepo(db)
+	api.NewHabitHandler(habit.NewService(habit.NewPostgresRepo(db, entries)), habit_entry.NewService(entries)).
+		Routes(e, authService.SessionUser)
+	// Serve each client request from its own address so the per-IP rate limit
+	// (a burst of 5) does not trip partway through the test.
+	client := habitclient.New("http://habits.test/api/v2", &http.Client{Transport: &distinctAddressTransport{handler: e}})
 
 	requests := 0
 	post := func(path, body string) *httptest.ResponseRecorder {
@@ -104,6 +131,25 @@ func TestPasswordReset(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualError(t, client.ResetPassword(ctx, "alex@example.com", code, "yet another passphrase"),
 		"Invalid or expired reset code.", "a code works only once")
+
+	// With a mailer, the code is emailed rather than logged.
+	sent := make(chan [3]string, 1)
+	mailing := auth.NewService(auth.NewPostgresRepo(db))
+	mailing.Mailer = mailerFunc(func(to, subject, body string) error {
+		sent <- [3]string{to, subject, body}
+		return nil
+	})
+	logs.Reset()
+	require.NoError(t, mailing.ForgotPassword(ctx, "alex@example.com"))
+	select {
+	case email := <-sent:
+		require.Equal(t, "alex@example.com", email[0])
+		require.Contains(t, email[1], "reset code")
+		require.Regexp(t, `reset code is: [A-Z2-7]{8}\n`, email[2])
+	case <-time.After(5 * time.Second):
+		t.Fatal("no reset email sent")
+	}
+	require.NotContains(t, logs.String(), "code=", "emailed codes are not logged")
 
 	// Expired codes are rejected.
 	require.NoError(t, client.ForgotPassword(ctx, "alex@example.com"))

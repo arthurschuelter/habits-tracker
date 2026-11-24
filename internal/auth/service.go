@@ -27,6 +27,9 @@ type credentials struct {
 }
 
 type Service struct {
+	// Mailer delivers password reset codes. When nil, codes are written to
+	// the log instead, which is only suitable for local development.
+	Mailer     Mailer
 	repo       *PostgresRepo
 	loginSlots chan struct{}
 }

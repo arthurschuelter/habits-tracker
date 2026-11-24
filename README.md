@@ -71,6 +71,21 @@ up to 1024 bytes. To set or reset a password for another existing account, pass
 its email instead. Sign in with the account's username. Migration 00008 leaves
 passwords unset, so each account needs this step before its first login.
 
+### Optional: password reset email
+
+"Forgot password" (ctrl+r on the TUI sign-in screen) emails a one-time code.
+To send the email, add an SMTP server to `.env`:
+
+```dotenv
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587            # optional, defaults to 587
+SMTP_USERNAME=...        # optional
+SMTP_PASSWORD=...        # optional
+SMTP_FROM=noreply@example.com
+```
+
+Without `SMTP_HOST`, the API writes reset codes to its log instead.
+
 ### 4. Start the API
 
 ```sh

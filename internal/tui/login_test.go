@@ -97,9 +97,13 @@ func TestSignOutFromMainMenu(t *testing.T) {
 }
 
 func TestQuitFromMainMenu(t *testing.T) {
-	m := selectMenuOption(t, newMainModel(nil), "Quit")
-	require.Equal(t, len(m.menuOptions)-1, m.cursor, "Quit is the last option")
-	_, cmd := updateModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	m := newMainModel(nil)
+	for _, option := range m.menuOptions {
+		require.NotEqual(t, "Quit", option.label, "the menu has no Quit option; q exits")
+	}
+	require.Equal(t, "Sign out", m.menuOptions[len(m.menuOptions)-1].label)
+	require.Contains(t, m.View().Content, "q: exit")
+	_, cmd := updateModel(t, m, tea.KeyPressMsg{Code: 'q', Text: "q"})
 	require.NotNil(t, cmd)
 	_, ok := cmd().(tea.QuitMsg)
 	require.True(t, ok)
